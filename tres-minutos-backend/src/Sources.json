@@ -1,0 +1,146 @@
+[
+  {
+    "name": "Ambito Portada",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/home.xml",
+    "category": "general",
+    "country": "ar",
+    "priority": 10,
+    "active": true
+  },
+  {
+    "name": "Ambito Economia",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/economia.xml",
+    "category": "economia",
+    "country": "ar",
+    "priority": 10,
+    "active": true
+  },
+  {
+    "name": "Ambito Negocios",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/negocios.xml",
+    "category": "negocios",
+    "country": "ar",
+    "priority": 8,
+    "active": true
+  },
+  {
+    "name": "Ambito Nacional",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/nacional.xml",
+    "category": "nacional",
+    "country": "ar",
+    "priority": 8,
+    "active": true
+  },
+  {
+    "name": "Ambito Lifestyle",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/lifestyle.xml",
+    "category": "lifestyle",
+    "country": "ar",
+    "priority": 5,
+    "active": true
+  },
+  {
+    "name": "Ambito Espectaculos",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/espectaculos.xml",
+    "category": "entretenimiento",
+    "country": "ar",
+    "priority": 6,
+    "active": true
+  },
+  {
+    "name": "Ambito Autos",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/autos.xml",
+    "category": "autos",
+    "country": "ar",
+    "priority": 4,
+    "active": true
+  },
+  {
+    "name": "Ambito Municipios",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/municipios.xml",
+    "category": "nacional",
+    "country": "ar",
+    "priority": 4,
+    "active": true
+  },
+  {
+    "name": "Ambito Ultimas Noticias",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/ultimas-noticias.xml",
+    "category": "general",
+    "country": "ar",
+    "priority": 10,
+    "active": true
+  },
+  {
+    "name": "Ambito Finanzas",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/finanzas.xml",
+    "category": "finanzas",
+    "country": "ar",
+    "priority": 8,
+    "active": true
+  },
+  {
+    "name": "Ambito Politica",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/politica.xml",
+    "category": "politica",
+    "country": "ar",
+    "priority": 9,
+    "active": true
+  },
+  {
+    "name": "Ambito Mundo",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/mundo.xml",
+    "category": "mundo",
+    "country": "ar",
+    "priority": 7,
+    "active": true
+  },
+  {
+    "name": "Ambito Deportes",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/deportes.xml",
+    "category": "deportes",
+    "country": "ar",
+    "priority": 7,
+    "active": true
+  },
+  {
+    "name": "Ambito Tecnologia",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/tecnologia.xml",
+    "category": "tecnologia",
+    "country": "ar",
+    "priority": 7,
+    "active": true
+  },
+  {
+    "name": "Ambito Edicion Impresa",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/edicion-impresa.xml",
+    "category": "general",
+    "country": "ar",
+    "priority": 3,
+    "active": true
+  },
+  {
+    "name": "Ambito Novedades Fiscales",
+    "type": "rss",
+    "url": "https://www.ambito.com/rss/pages/novedades-fiscales.xml",
+    "category": "economia",
+    "country": "ar",
+    "priority": 5,
+    "active": true
+  }
+]
