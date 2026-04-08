@@ -1,0 +1,45 @@
+[
+  {
+    "name": "NewsAPI Top Headlines AR",
+    "type": "newsapi",
+    "endpoint": "top-headlines",
+    "country": "ar",
+    "language": "es",
+    "category": "general",
+    "pageSize": 20,
+    "active": false
+  },
+  {
+    "name": "NewsAPI Business AR",
+    "type": "newsapi",
+    "endpoint": "top-headlines",
+    "country": "ar",
+    "language": "es",
+    "category": "economia",
+    "newsApiCategory": "business",
+    "pageSize": 20,
+    "active": false
+  },
+  {
+    "name": "NewsAPI Sports AR",
+    "type": "newsapi",
+    "endpoint": "top-headlines",
+    "country": "ar",
+    "language": "es",
+    "category": "deportes",
+    "newsApiCategory": "sports",
+    "pageSize": 20,
+    "active": false
+  },
+  {
+    "name": "NewsAPI Technology AR",
+    "type": "newsapi",
+    "endpoint": "top-headlines",
+    "country": "ar",
+    "language": "es",
+    "category": "tecnologia",
+    "newsApiCategory": "technology",
+    "pageSize": 20,
+    "active": false
+  }
+]

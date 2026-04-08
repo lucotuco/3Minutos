@@ -45,6 +45,25 @@ const articleSchema = new mongoose.Schema(
       default: 'global',
       index: true,
     },
+    tags: {
+      type: [String],
+      default: [],
+      index: true,
+    },
+    aiConfidence: {
+      type: Number,
+      default: 0,
+    },
+    importanceScore: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
+    importanceLevel: {
+      type: String,
+      default: 'low',
+      index: true,
+    },
     country: {
       type: String,
       default: 'ar',
@@ -69,24 +88,63 @@ const articleSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    tags: {
-      type: [String],
-      default: [],
-      index: true,
-    },
-    tagScores: {
-      type: Map,
-      of: Number,
-      default: {},
-    },
     normalizedTitle: {
       type: String,
       default: '',
     },
+    embeddingText: {
+  type: String,
+  default: '',
+},
+
+embeddingModel: {
+  type: String,
+  default: '',
+},
+
+embeddingStatus: {
+  type: String,
+  enum: ['pending', 'done', 'error'],
+  default: 'pending',
+},
+
+embeddingGeneratedAt: {
+  type: Date,
+  default: null,
+},
+embeddingError: {
+  type: String,
+  default: '',
+},
+embedding: {
+  type: [Number],
+  default: [],
+},
+summaryVariants: {
+  type: Map,
+  of: String,
+  default: {},
+},
+
+summaryStatus: {
+  type: String,
+  enum: ['pending', 'done', 'error'],
+  default: 'pending',
+},
+
+summaryGeneratedAt: {
+  type: Date,
+  default: null,
+},
+
+summaryError: {
+  type: String,
+  default: '',
+},
   },
   {
     timestamps: true,
   }
 );
 
-module.exports = mongoose.model('Article', articleSchema);
+module.exports = mongoose.model('Article', articleSchema, 'articles');

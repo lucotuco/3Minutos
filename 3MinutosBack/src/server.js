@@ -3,9 +3,7 @@ const dotenv = require('dotenv');
 const app = require('./app');
 
 dotenv.config();
-
 const PORT = 3000;
-
 async function startServer() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
