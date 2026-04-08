@@ -1,9 +1,7 @@
 require('dotenv').config();
 
 const mongoose = require('mongoose');
-const UserPreference = require('../models/UserPreference');
-const { buildDigestForUser } = require('../utils/buildDigestForUser');
-const { saveShownArticlesForUser } = require('../utils/saveShownArticlesForUser');
+const { prepareUpcomingDeliveryRuns } = require('../utils/prepareUpcomingDeliveryRuns');
 
 async function connectDB() {
   await mongoose.connect(process.env.MONGODB_URI);
@@ -13,39 +11,12 @@ async function connectDB() {
 async function run() {
   await connectDB();
 
-  const user = await UserPreference.findOne({ isActive: true }).lean();
-
-  if (!user) {
-    throw new Error('No active user found');
-  }
-
-  const result = await buildDigestForUser(user._id);
-
-  console.log(`\n👤 Usuario: ${result.user.name}`);
-  console.log(`🎯 Tono: ${result.user.tone}`);
-  console.log(`🕒 Horario: ${result.user.deliveryTime}`);
-  console.log(`📌 Topics: ${result.user.topics.join(' | ')}`);
-
-  result.digest.items.forEach((item, index) => {
-    console.log(`\n${index + 1}. Topic: ${item.topic}`);
-
-    if (!item.url) {
-      console.log('   Sin resultado');
-      return;
-    }
-
-    console.log(`   title: ${item.title}`);
-    console.log(`   summary: ${item.summary}`);
-    console.log(`   url: ${item.url}`);
+  const results = await prepareUpcomingDeliveryRuns({
+    minutesAhead: 10,
   });
 
-  await saveShownArticlesForUser(
-    result.user.id,
-    result.digest.items,
-    result.user.tone
-  );
-
-  console.log('\n✅ Noticias guardadas como mostradas para ese usuario');
+  console.log('\n📦 Corridas preparadas:\n');
+  console.log(JSON.stringify(results, null, 2));
 
   await mongoose.disconnect();
 }
