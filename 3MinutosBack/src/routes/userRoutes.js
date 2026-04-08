@@ -2,8 +2,8 @@ const express = require('express');
 const UserPreference = require('../models/UserPreference');
 const UserShownArticle = require('../models/UserShownArticle');
 const UserDeliveryRun = require('../models/UserDeliveryRun');
-const { buildDigestForUser } = require('../services/buildDigestForUser');
-const { saveShownArticlesForUser } = require('../services/saveShownArticlesForUser');
+const { buildDigestForUser } = require('../utils/buildDigestForUser');
+const { saveShownArticlesForUser } = require('../utils/saveShownArticlesForUser');
 const { getLocalDateString } = require('../utils/dateHelpers');
 
 const router = express.Router();
