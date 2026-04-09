@@ -171,6 +171,7 @@ router.get('/:userId/digest', async (req, res) => {
 
     const result = await buildDigestForUser(req.params.userId);
     return res.json(result);
+    await saveShownArticlesForUser(user._id, result.digest.items || [], user.tone);
   } catch (error) {
     if (error.message === 'User not found') {
       return res.status(404).json({ error: error.message });
@@ -208,7 +209,7 @@ router.post('/:userId/digest/refresh', async (req, res) => {
         ? getLocalDateString(new Date(now.getTime() + 24 * 60 * 60 * 1000))
         : today;
 
-    await saveShownArticlesForUser(user._id, result.digest.items || [], user.tone);
+    
 
     await UserDeliveryRun.findOneAndUpdate(
       {
