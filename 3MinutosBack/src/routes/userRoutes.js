@@ -4,7 +4,11 @@ const UserShownArticle = require('../models/UserShownArticle');
 const UserDeliveryRun = require('../models/UserDeliveryRun');
 const { buildDigestForUser } = require('../utils/buildDigestForUser');
 const { saveShownArticlesForUser } = require('../utils/saveShownArticlesForUser');
-const { getLocalDateString } = require('../utils/dateHelpers');
+const {
+  getLocalDateString,
+  getMinutesNow,
+  parseTimeToMinutes,
+} = require('../utils/dateHelpers');
 
 const router = express.Router();
 
@@ -141,6 +145,30 @@ router.patch('/preferences/:userId', async (req, res) => {
 
 router.get('/:userId/digest', async (req, res) => {
   try {
+    const user = await UserPreference.findById(req.params.userId).lean();
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.isActive) {
+      return res.status(400).json({ error: 'User is inactive' });
+    }
+
+    const deliveryDate = getLocalDateString();
+
+    const existingRun = await UserDeliveryRun.findOne({
+      userId: user._id,
+      deliveryDate,
+      deliveryTime: user.deliveryTime,
+      status: 'prepared',
+      digest: { $ne: null },
+    }).lean();
+
+    if (existingRun && existingRun.digest) {
+      return res.json(existingRun.digest);
+    }
+
     const result = await buildDigestForUser(req.params.userId);
     return res.json(result);
   } catch (error) {
@@ -158,28 +186,41 @@ router.get('/:userId/digest', async (req, res) => {
 
 router.post('/:userId/digest/refresh', async (req, res) => {
   try {
+    const user = await UserPreference.findById(req.params.userId).lean();
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.isActive) {
+      return res.status(400).json({ error: 'User is inactive' });
+    }
+
+    const now = new Date();
+    const today = getLocalDateString(now);
+    const nowMinutes = getMinutesNow(now);
+    const deliveryMinutes = parseTimeToMinutes(user.deliveryTime);
+
     const result = await buildDigestForUser(req.params.userId);
 
-    const userId = result.user.id;
-    const tone = result.user.tone;
-    const items = result.digest.items || [];
+    const targetDate =
+      deliveryMinutes !== null && nowMinutes > deliveryMinutes
+        ? getLocalDateString(new Date(now.getTime() + 24 * 60 * 60 * 1000))
+        : today;
 
-    await saveShownArticlesForUser(userId, items, tone);
-
-    const deliveryDate = getLocalDateString();
-    const deliveryTime = result.user.deliveryTime;
+    await saveShownArticlesForUser(user._id, result.digest.items || [], user.tone);
 
     await UserDeliveryRun.findOneAndUpdate(
       {
-        userId,
-        deliveryDate,
-        deliveryTime,
+        userId: user._id,
+        deliveryDate: targetDate,
+        deliveryTime: user.deliveryTime,
       },
       {
         $set: {
-          userId,
-          deliveryDate,
-          deliveryTime,
+          userId: user._id,
+          deliveryDate: targetDate,
+          deliveryTime: user.deliveryTime,
           status: 'prepared',
           digest: result,
           preparedAt: new Date(),
@@ -188,7 +229,7 @@ router.post('/:userId/digest/refresh', async (req, res) => {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: 'after',
       }
     );
 
