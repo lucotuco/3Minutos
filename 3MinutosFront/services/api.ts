@@ -1,6 +1,3 @@
-import Constants from "expo-constants";
-import { Platform } from "react-native";
-
 type Tone = "neutro" | "cercano" | "especialista" | "breve";
 
 export type UserPreferences = {
@@ -65,39 +62,14 @@ function normalizeTopics(value: unknown): [string, string, string] {
   return [topics[0], topics[1], topics[2]];
 }
 
-function resolveApiBaseUrl() {
-  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (fromEnv) {
-    return fromEnv.replace(/\/+$/, "");
-  }
-
-  const constantsWithManifests = Constants as unknown as {
-    expoConfig?: { hostUri?: string } | null;
-    manifest2?: { extra?: { expoGo?: { debuggerHost?: string } } };
-    manifest?: { debuggerHost?: string };
-  };
-
-  const hostUri =
-    constantsWithManifests.expoConfig?.hostUri ??
-    constantsWithManifests.manifest2?.extra?.expoGo?.debuggerHost ??
-    constantsWithManifests.manifest?.debuggerHost;
-
-  const host = hostUri?.split(":")[0];
-  if (host) {
-    return `http://${host}:3000`;
-  }
-
-  if (Platform.OS === "android") {
-    return "http://10.0.2.2:3000";
-  }
-
-  return "http://localhost:3000";
-}
-
-const API_BASE_URL = resolveApiBaseUrl();
+const API_BASE_URL = (
+  process.env.EXPO_PUBLIC_API_URL?.trim() ||
+  "https://threeminutos-backend.onrender.com"
+).replace(/\/+$/, "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
+
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
@@ -108,12 +80,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new Error(
-      `No se pudo conectar al backend (${API_BASE_URL}). Define EXPO_PUBLIC_API_URL o levanta el server.`
+      `No se pudo conectar al backend (${API_BASE_URL}). Revisa EXPO_PUBLIC_API_URL o que el backend este online.`
     );
   }
 
   const text = await response.text();
   let data: unknown = null;
+
   if (text) {
     try {
       data = JSON.parse(text) as unknown;
@@ -231,10 +204,16 @@ export const api = {
       body: JSON.stringify(prefs),
     });
 
+    console.log("[api.createPreferences] respuesta backend:", created);
+
     const mapped = mapPreferences(created);
+
+    console.log("[api.createPreferences] mapped:", mapped);
+
     if (!mapped.id) {
       throw new Error("El backend no devolvio un id de usuario valido.");
     }
+
     return { id: mapped.id };
   },
 
@@ -248,6 +227,7 @@ export const api = {
       deliveryTime?: unknown;
       isActive?: unknown;
     }>(`/users/preferences/${userId}`);
+
     return mapPreferences(raw);
   },
 
@@ -264,6 +244,7 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(next),
     });
+
     return mapPreferences(raw);
   },
 

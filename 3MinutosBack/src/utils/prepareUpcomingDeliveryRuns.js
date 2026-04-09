@@ -7,6 +7,18 @@ const {
   getMinutesNow,
 } = require('../utils/dateHelpers');
 
+function isMinutesInWindow(deliveryMinutes, nowMinutes, minutesAhead) {
+  if (deliveryMinutes === null) return false;
+
+  const endMinutes = (nowMinutes + minutesAhead) % 1440;
+
+  if (nowMinutes <= endMinutes) {
+    return deliveryMinutes >= nowMinutes && deliveryMinutes <= endMinutes;
+  }
+
+  return deliveryMinutes >= nowMinutes || deliveryMinutes <= endMinutes;
+}
+
 async function prepareUpcomingDeliveryRuns({
   minutesAhead = 10,
   now = new Date(),
@@ -16,14 +28,11 @@ async function prepareUpcomingDeliveryRuns({
   }).lean();
 
   const nowMinutes = getMinutesNow(now);
-  const maxMinutes = nowMinutes + minutesAhead;
   const deliveryDate = getLocalDateString(now);
 
   const usersInWindow = users.filter((user) => {
     const deliveryMinutes = parseTimeToMinutes(user.deliveryTime);
-    if (deliveryMinutes === null) return false;
-
-    return deliveryMinutes >= nowMinutes && deliveryMinutes <= maxMinutes;
+    return isMinutesInWindow(deliveryMinutes, nowMinutes, minutesAhead);
   });
 
   const results = [];

@@ -36,16 +36,21 @@ export function UserProvider({ children }: Props) {
   useEffect(() => {
     const load = async () => {
       try {
-        const stored = await AsyncStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          setUserIdState(stored);
-        }
-      } catch (err) {
-        console.warn("Unable to load stored user id", err);
-      } finally {
-        setIsLoading(false);
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+
+      const isMongoId = /^[a-fA-F0-9]{24}$/.test(stored ?? "");
+
+      if (stored && isMongoId) {
+        setUserIdState(stored);
+      } else if (stored) {
+        await AsyncStorage.removeItem(STORAGE_KEY);
       }
-    };
+    } catch (err) {
+      console.warn("Unable to load stored user id", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
     load();
   }, []);
 
