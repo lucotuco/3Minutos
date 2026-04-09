@@ -28,6 +28,20 @@ const UserDeliveryRunSchema = new mongoose.Schema(
       type: Object,
       default: null,
     },
+    preferencesSnapshot: {
+      topics: {
+        type: [String],
+        default: [],
+      },
+      tone: {
+        type: String,
+        default: 'neutro',
+      },
+      deliveryTime: {
+        type: String,
+        default: '08:00',
+      },
+    },
     preparedAt: {
       type: Date,
       default: null,

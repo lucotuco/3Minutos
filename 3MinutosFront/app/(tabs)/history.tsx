@@ -37,6 +37,7 @@ function formatDate(iso: string) {
 function ArticleRow({ item }: { item: ShownArticle }) {
   const colors = useColors();
   const s = rowStyles(colors);
+
   return (
     <View style={[s.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={s.topRow}>
@@ -47,9 +48,25 @@ function ArticleRow({ item }: { item: ShownArticle }) {
           {formatDate(item.shownAt)}
         </Text>
       </View>
-      <Text style={[s.tone, { color: colors.mutedForeground }]}>
+
+      {item.title ? (
+        <Text style={[s.title, { color: colors.foreground }]} numberOfLines={2}>
+          {item.title}
+        </Text>
+      ) : null}
+
+      {item.summary ? (
+        <Text style={[s.summary, { color: colors.mutedForeground }]} numberOfLines={3}>
+          {item.summary}
+        </Text>
+      ) : null}
+
+      <Text style={[s.meta, { color: colors.mutedForeground }]}>
         <Feather name="feather" size={11} /> {item.tone}
+        {item.section ? ` · ${item.section}` : ""}
+        {item.region ? ` · ${item.region}` : ""}
       </Text>
+
       {item.articleUrl ? (
         <TouchableOpacity
           onPress={() => {
@@ -61,7 +78,7 @@ function ArticleRow({ item }: { item: ShownArticle }) {
         >
           <Feather name="external-link" size={13} color={colors.primary} />
           <Text style={[s.linkTxt, { color: colors.primary }]} numberOfLines={1}>
-            {item.articleUrl}
+            Abrir noticia
           </Text>
         </TouchableOpacity>
       ) : null}
@@ -76,7 +93,7 @@ const rowStyles = (colors: ReturnType<typeof useColors>) =>
       borderWidth: 1,
       padding: 14,
       marginBottom: 12,
-      gap: 6,
+      gap: 8,
     },
     topRow: {
       flexDirection: "row",
@@ -97,7 +114,17 @@ const rowStyles = (colors: ReturnType<typeof useColors>) =>
       fontSize: 11,
       fontFamily: "Inter_400Regular",
     },
-    tone: {
+    title: {
+      fontSize: 15,
+      fontFamily: "Inter_700Bold",
+      lineHeight: 21,
+    },
+    summary: {
+      fontSize: 13,
+      fontFamily: "Inter_400Regular",
+      lineHeight: 19,
+    },
+    meta: {
       fontSize: 12,
       fontFamily: "Inter_400Regular",
       textTransform: "capitalize",
@@ -110,7 +137,7 @@ const rowStyles = (colors: ReturnType<typeof useColors>) =>
     },
     linkTxt: {
       fontSize: 12,
-      fontFamily: "Inter_400Regular",
+      fontFamily: "Inter_500Medium",
       flex: 1,
     },
   });
@@ -155,7 +182,7 @@ export default function HistoryScreen() {
       {!isLoading && !isError && (
         <FlatList
           data={data ?? []}
-          keyExtractor={(item, i) => item.articleId ?? `${i}`}
+          keyExtractor={(item, i) => `${item.articleUrl ?? item.articleId ?? i}-${item.shownAt}`}
           renderItem={({ item }) => <ArticleRow item={item} />}
           contentContainerStyle={[s.list, { paddingBottom: botPad }]}
           scrollEnabled={!!data && data.length > 0}

@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -28,6 +28,7 @@ export default function DigestScreen() {
   const { userId } = useUser();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+  const lastMarkedKeyRef = useRef<string | null>(null);
 
   const {
     data,
@@ -42,13 +43,35 @@ export default function DigestScreen() {
     staleTime: 1000 * 60 * 5,
   });
 
+  useEffect(() => {
+    if (!userId || !data?.digest?.items?.length) return;
+
+    const markKey = JSON.stringify({
+      tone: data.digest.tone,
+      items: data.digest.items.map((item) => ({
+        articleId: item.articleId ?? "",
+        url: item.url ?? "",
+        topic: item.topic ?? "",
+      })),
+    });
+
+    if (lastMarkedKeyRef.current === markKey) return;
+    lastMarkedKeyRef.current = markKey;
+
+    api.markDigestShown(userId, {
+      items: data.digest.items,
+      tone: data.digest.tone,
+    }).catch(() => {});
+  }, [userId, data]);
+
   const handleRefresh = useCallback(async () => {
     if (!userId) return;
     setRefreshing(true);
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
     try {
-      await api.refreshDigest(userId);
-      await queryClient.invalidateQueries({ queryKey: ["digest", userId] });
+      const result = await api.refreshDigest(userId);
+      await queryClient.setQueryData(["digest", userId], result);
     } catch {
     } finally {
       setRefreshing(false);
@@ -61,7 +84,16 @@ export default function DigestScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: colors.background }]}>
-      <View style={[s.header, { paddingTop: topPad + 16, backgroundColor: colors.background, borderBottomColor: colors.border }]}>
+      <View
+        style={[
+          s.header,
+          {
+            paddingTop: topPad + 16,
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <View style={s.headerLeft}>
           <Text style={[s.greeting, { color: colors.mutedForeground }]}>
             {data?.user?.name ? `Hola, ${data.user.name}` : "Tu digest"}
@@ -123,7 +155,7 @@ export default function DigestScreen() {
               </View>
             ) : null}
             {data.digest.items.map((item, i) => (
-              <DigestCard key={item.articleId ?? i} item={item} index={i} />
+              <DigestCard key={item.articleId ?? `${item.url ?? ""}-${i}`} item={item} index={i} />
             ))}
           </>
         )}

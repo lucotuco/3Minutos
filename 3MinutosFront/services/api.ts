@@ -36,9 +36,14 @@ export type DigestResponse = {
 
 export type ShownArticle = {
   articleId?: string;
+  title?: string;
+  summary?: string;
   topic: string;
   tone: string;
+  region?: string;
+  section?: string;
   articleUrl?: string;
+  shownDate?: string;
   shownAt: string;
 };
 
@@ -175,16 +180,26 @@ function mapDigest(raw: RawDigest): DigestResponse {
 
 function mapShownArticle(raw: {
   articleId?: string;
+  title?: unknown;
+  summary?: unknown;
   topic?: unknown;
   tone?: unknown;
+  region?: unknown;
+  section?: unknown;
   articleUrl?: unknown;
+  shownDate?: unknown;
   shownAt?: unknown;
 }): ShownArticle {
   return {
     articleId: raw.articleId ? String(raw.articleId) : undefined,
+    title: raw.title ? String(raw.title) : undefined,
+    summary: raw.summary ? String(raw.summary) : undefined,
     topic: String(raw.topic ?? ""),
     tone: String(raw.tone ?? ""),
+    region: raw.region ? String(raw.region) : undefined,
+    section: raw.section ? String(raw.section) : undefined,
     articleUrl: raw.articleUrl ? String(raw.articleUrl) : undefined,
+    shownDate: raw.shownDate ? String(raw.shownDate) : undefined,
     shownAt: String(raw.shownAt ?? ""),
   };
 }
@@ -204,11 +219,7 @@ export const api = {
       body: JSON.stringify(prefs),
     });
 
-    console.log("[api.createPreferences] respuesta backend:", created);
-
     const mapped = mapPreferences(created);
-
-    console.log("[api.createPreferences] mapped:", mapped);
 
     if (!mapped.id) {
       throw new Error("El backend no devolvio un id de usuario valido.");
@@ -260,13 +271,25 @@ export const api = {
     return mapDigest(raw);
   },
 
+  async markDigestShown(userId: string, payload: { items: DigestItem[]; tone: string }) {
+    return request<{ ok: boolean }>(`/users/${userId}/digest/mark-shown`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   async getShownArticles(userId: string): Promise<ShownArticle[]> {
     const raw = await request<
       Array<{
         articleId?: string;
+        title?: unknown;
+        summary?: unknown;
         topic?: unknown;
         tone?: unknown;
+        region?: unknown;
+        section?: unknown;
         articleUrl?: unknown;
+        shownDate?: unknown;
         shownAt?: unknown;
       }>
     >(`/users/${userId}/shown-articles`);

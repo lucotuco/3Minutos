@@ -11,8 +11,11 @@ const UserPreferenceSchema = new mongoose.Schema(
       type: [String],
       default: [],
       validate: {
-        validator: (value) => Array.isArray(value) && value.length > 0 && value.length <= 3,
-        message: 'topics must contain between 1 and 3 items',
+        validator: (value) =>
+          Array.isArray(value) &&
+          value.length === 3 &&
+          value.every((item) => typeof item === 'string' && item.trim().length > 0),
+        message: 'topics must contain exactly 3 non-empty items',
       },
     },
     tone: {

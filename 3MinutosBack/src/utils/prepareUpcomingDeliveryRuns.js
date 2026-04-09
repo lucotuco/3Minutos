@@ -65,6 +65,11 @@ async function prepareUpcomingDeliveryRuns({
         deliveryTime: user.deliveryTime,
         status: 'prepared',
         digest,
+        preferencesSnapshot: {
+          topics: user.topics || [],
+          tone: user.tone || 'neutro',
+          deliveryTime: user.deliveryTime,
+        },
         preparedAt: new Date(),
       });
 
@@ -82,6 +87,11 @@ async function prepareUpcomingDeliveryRuns({
         deliveryDate,
         deliveryTime: user.deliveryTime,
         status: 'error',
+        preferencesSnapshot: {
+          topics: user.topics || [],
+          tone: user.tone || 'neutro',
+          deliveryTime: user.deliveryTime,
+        },
         errorMessage: error.message || 'Unknown prepare error',
       });
 

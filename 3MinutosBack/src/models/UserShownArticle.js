@@ -9,13 +9,21 @@ const UserShownArticleSchema = new mongoose.Schema(
     },
     articleId: {
       type: mongoose.Schema.Types.ObjectId,
-      required: true,
+      default: null,
       index: true,
     },
     articleUrl: {
       type: String,
       required: true,
       index: true,
+    },
+    title: {
+      type: String,
+      default: '',
+    },
+    summary: {
+      type: String,
+      default: '',
     },
     topic: {
       type: String,
@@ -24,6 +32,19 @@ const UserShownArticleSchema = new mongoose.Schema(
     tone: {
       type: String,
       default: '',
+    },
+    region: {
+      type: String,
+      default: '',
+    },
+    section: {
+      type: String,
+      default: '',
+    },
+    shownDate: {
+      type: String,
+      required: true,
+      index: true,
     },
     shownAt: {
       type: Date,
@@ -35,7 +56,7 @@ const UserShownArticleSchema = new mongoose.Schema(
 );
 
 UserShownArticleSchema.index(
-  { userId: 1, articleUrl: 1 },
+  { userId: 1, shownDate: 1, articleUrl: 1 },
   { unique: true }
 );
 

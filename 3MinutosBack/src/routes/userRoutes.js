@@ -4,11 +4,7 @@ const UserShownArticle = require('../models/UserShownArticle');
 const UserDeliveryRun = require('../models/UserDeliveryRun');
 const { buildDigestForUser } = require('../utils/buildDigestForUser');
 const { saveShownArticlesForUser } = require('../utils/saveShownArticlesForUser');
-const {
-  getLocalDateString,
-  getMinutesNow,
-  parseTimeToMinutes,
-} = require('../utils/dateHelpers');
+const { getLocalDateString } = require('../utils/dateHelpers');
 
 const router = express.Router();
 
@@ -155,17 +151,18 @@ router.get('/:userId/digest', async (req, res) => {
       return res.status(400).json({ error: 'User is inactive' });
     }
 
-    const deliveryDate = getLocalDateString();
+    const deliveryDate = getLocalDateString(new Date());
 
     const existingRun = await UserDeliveryRun.findOne({
       userId: user._id,
       deliveryDate,
-      deliveryTime: user.deliveryTime,
       status: 'prepared',
       digest: { $ne: null },
-    }).lean();
+    })
+      .sort({ preparedAt: -1, createdAt: -1 })
+      .lean();
 
-    if (existingRun && existingRun.digest) {
+    if (existingRun?.digest) {
       return res.json(existingRun.digest);
     }
 
@@ -196,42 +193,7 @@ router.post('/:userId/digest/refresh', async (req, res) => {
       return res.status(400).json({ error: 'User is inactive' });
     }
 
-    const now = new Date();
-    const today = getLocalDateString(now);
-    const nowMinutes = getMinutesNow(now);
-    const deliveryMinutes = parseTimeToMinutes(user.deliveryTime);
-
     const result = await buildDigestForUser(req.params.userId);
-
-    const targetDate =
-      deliveryMinutes !== null && nowMinutes > deliveryMinutes
-        ? getLocalDateString(new Date(now.getTime() + 24 * 60 * 60 * 1000))
-        : today;
-
-    await saveShownArticlesForUser(user._id, result.digest.items || [], user.tone);
-
-    await UserDeliveryRun.findOneAndUpdate(
-      {
-        userId: user._id,
-        deliveryDate: targetDate,
-        deliveryTime: user.deliveryTime,
-      },
-      {
-        $set: {
-          userId: user._id,
-          deliveryDate: targetDate,
-          deliveryTime: user.deliveryTime,
-          status: 'prepared',
-          digest: result,
-          preparedAt: new Date(),
-          errorMessage: '',
-        },
-      },
-      {
-        upsert: true,
-        returnDocument: 'after',
-      }
-    );
 
     return res.json(result);
   } catch (error) {
@@ -247,12 +209,39 @@ router.post('/:userId/digest/refresh', async (req, res) => {
   }
 });
 
+router.post('/:userId/digest/mark-shown', async (req, res) => {
+  try {
+    const user = await UserPreference.findById(req.params.userId).lean();
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const { items = [], tone = user.tone || 'neutro', shownDate } = req.body || {};
+
+    if (!Array.isArray(items)) {
+      return res.status(400).json({ error: 'items must be an array' });
+    }
+
+    const effectiveShownDate = shownDate || getLocalDateString(new Date());
+
+    await saveShownArticlesForUser(user._id, items, {
+      tone,
+      shownDate: effectiveShownDate,
+    });
+
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to mark shown articles' });
+  }
+});
+
 router.get('/:userId/shown-articles', async (req, res) => {
   try {
     const items = await UserShownArticle.find({
       userId: req.params.userId,
     })
-      .sort({ shownAt: -1 })
+      .sort({ shownAt: -1, createdAt: -1 })
       .lean();
 
     return res.json(items);
