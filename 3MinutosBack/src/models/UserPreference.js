@@ -31,6 +31,10 @@ const UserPreferenceSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    expoPushToken: {
+  type: String,
+  default: null,
+}
   },
   { timestamps: true }
 );

@@ -37,6 +37,8 @@ function startPrepareDeliveryRunsJob() {
           minutesAhead: 10,
           now,
         });
+        const { sendPreparedDigestNotifications } = require('./sendPreparedDigestNotificationsJob');
+await sendPreparedDigestNotifications();
 
         console.log('📦 Corridas preparadas:');
         console.log(JSON.stringify(results, null, 2));

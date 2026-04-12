@@ -54,6 +54,10 @@ const UserDeliveryRunSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    notificationSentAt: {
+  type: Date,
+  default: null,
+}
   },
   { timestamps: true }
 );

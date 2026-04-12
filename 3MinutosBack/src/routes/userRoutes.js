@@ -250,4 +250,28 @@ router.get('/:userId/shown-articles', async (req, res) => {
   }
 });
 
+router.patch('/preferences/:userId/push-token', async (req, res) => {
+  try {
+    const { expoPushToken } = req.body || {};
+
+    if (!expoPushToken || typeof expoPushToken !== 'string') {
+      return res.status(400).json({ error: 'expoPushToken is required' });
+    }
+
+    const user = await UserPreference.findByIdAndUpdate(
+      req.params.userId,
+      { $set: { expoPushToken } },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to save push token' });
+  }
+});
+
 module.exports = router;
