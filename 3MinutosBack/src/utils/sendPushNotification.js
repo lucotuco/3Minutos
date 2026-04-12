@@ -25,6 +25,8 @@ async function sendPushNotification({ to, title, body, data = {} }) {
     tickets.push(...ticketChunk);
   }
 
+  console.log('[Push] tickets:', JSON.stringify(tickets, null, 2));
+
   return tickets;
 }
 
