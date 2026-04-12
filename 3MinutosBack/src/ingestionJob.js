@@ -1,7 +1,8 @@
 const cron = require('node-cron');
 const path = require('path');
 const { spawn } = require('child_process');
-const { APP_TIME_ZONE } = require('./utils/dateHelpers');
+
+const APP_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
 let isIngestionRunning = false;
 
@@ -61,7 +62,7 @@ async function runHourlyIngestion() {
 
 function startHourlyIngestionJob() {
   cron.schedule(
-    '/10 * * * *',
+    '0 * * * *',
     async () => {
       await runHourlyIngestion();
     },
