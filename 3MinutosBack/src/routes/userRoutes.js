@@ -16,11 +16,6 @@ function normalizeTopics(topics) {
     .slice(0, 3);
 }
 
-function validateTone(tone) {
-  const allowed = ['neutro', 'cercano', 'especialista', 'breve'];
-  return allowed.includes(tone) ? tone : null;
-}
-
 function validateDeliveryTime(value) {
   return /^\d{2}:\d{2}$/.test(String(value || ''));
 }
@@ -42,7 +37,6 @@ async function savePreparedDigestRun(user, digest, deliveryDate) {
         errorMessage: '',
         preferencesSnapshot: {
           topics: user.topics || [],
-          tone: user.tone || 'neutro',
           deliveryTime: user.deliveryTime,
         },
       },
@@ -59,14 +53,9 @@ async function triggerBackgroundDigestRefresh(user, deliveryDate) {
   try {
     const digest = await buildDigestForUser(user._id);
     await savePreparedDigestRun(user, digest, deliveryDate);
-    console.log(
-      `✅ Digest refrescado en background para ${user.name} (${user._id})`
-    );
+    console.log(`✅ Digest refrescado en background para ${user.name} (${user._id})`);
   } catch (error) {
-    console.error(
-      `❌ Error refrescando digest en background para ${user._id}:`,
-      error.message
-    );
+    console.error(`❌ Error refrescando digest en background para ${user._id}:`, error.message);
 
     await UserDeliveryRun.findOneAndUpdate(
       {
@@ -80,7 +69,6 @@ async function triggerBackgroundDigestRefresh(user, deliveryDate) {
           errorMessage: error.message || 'Background digest refresh failed',
           preferencesSnapshot: {
             topics: user.topics || [],
-            tone: user.tone || 'neutro',
             deliveryTime: user.deliveryTime,
           },
         },
@@ -98,14 +86,12 @@ router.post('/preferences', async (req, res) => {
     const {
       name = '',
       topics = [],
-      tone = 'neutro',
       deliveryTime = '08:00',
       isActive = true,
     } = req.body || {};
 
     const cleanName = String(name).trim();
     const cleanTopics = normalizeTopics(topics);
-    const cleanTone = validateTone(tone);
 
     if (!cleanName) {
       return res.status(400).json({ error: 'name is required' });
@@ -115,10 +101,6 @@ router.post('/preferences', async (req, res) => {
       return res.status(400).json({ error: 'topics must contain exactly 3 items' });
     }
 
-    if (!cleanTone) {
-      return res.status(400).json({ error: 'invalid tone' });
-    }
-
     if (!validateDeliveryTime(deliveryTime)) {
       return res.status(400).json({ error: 'invalid deliveryTime format, expected HH:MM' });
     }
@@ -126,7 +108,6 @@ router.post('/preferences', async (req, res) => {
     const user = await UserPreference.create({
       name: cleanName,
       topics: cleanTopics,
-      tone: cleanTone,
       deliveryTime,
       isActive: Boolean(isActive),
     });
@@ -154,7 +135,7 @@ router.get('/preferences/:userId', async (req, res) => {
 router.patch('/preferences/:userId', async (req, res) => {
   try {
     const updates = {};
-    const { name, topics, tone, deliveryTime, isActive } = req.body || {};
+    const { name, topics, deliveryTime, isActive } = req.body || {};
 
     if (name !== undefined) {
       const cleanName = String(name).trim();
@@ -170,14 +151,6 @@ router.patch('/preferences/:userId', async (req, res) => {
         return res.status(400).json({ error: 'topics must contain exactly 3 items' });
       }
       updates.topics = cleanTopics;
-    }
-
-    if (tone !== undefined) {
-      const cleanTone = validateTone(tone);
-      if (!cleanTone) {
-        return res.status(400).json({ error: 'invalid tone' });
-      }
-      updates.tone = cleanTone;
     }
 
     if (deliveryTime !== undefined) {
@@ -303,7 +276,7 @@ router.post('/:userId/digest/mark-shown', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const { items = [], tone = user.tone || 'neutro', shownDate } = req.body || {};
+    const { items = [], shownDate } = req.body || {};
 
     if (!Array.isArray(items)) {
       return res.status(400).json({ error: 'items must be an array' });
@@ -312,7 +285,6 @@ router.post('/:userId/digest/mark-shown', async (req, res) => {
     const effectiveShownDate = shownDate || getLocalDateString(new Date());
 
     await saveShownArticlesForUser(user._id, items, {
-      tone,
       shownDate: effectiveShownDate,
     });
 
