@@ -18,11 +18,6 @@ const UserPreferenceSchema = new mongoose.Schema(
         message: 'topics must contain exactly 3 non-empty items',
       },
     },
-    tone: {
-      type: String,
-      enum: ['neutro', 'cercano', 'especialista', 'breve'],
-      default: 'neutro',
-    },
     deliveryTime: {
       type: String,
       default: '08:00',
@@ -32,9 +27,9 @@ const UserPreferenceSchema = new mongoose.Schema(
       default: true,
     },
     expoPushToken: {
-  type: String,
-  default: null,
-}
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

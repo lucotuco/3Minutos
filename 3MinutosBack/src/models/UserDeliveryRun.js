@@ -33,10 +33,6 @@ const UserDeliveryRunSchema = new mongoose.Schema(
         type: [String],
         default: [],
       },
-      tone: {
-        type: String,
-        default: 'neutro',
-      },
       deliveryTime: {
         type: String,
         default: '08:00',
@@ -55,9 +51,9 @@ const UserDeliveryRunSchema = new mongoose.Schema(
       default: '',
     },
     notificationSentAt: {
-  type: Date,
-  default: null,
-}
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

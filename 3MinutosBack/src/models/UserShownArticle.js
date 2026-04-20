@@ -29,10 +29,6 @@ const UserShownArticleSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
-    tone: {
-      type: String,
-      default: '',
-    },
     region: {
       type: String,
       default: '',

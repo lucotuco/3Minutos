@@ -4,7 +4,7 @@ const { getLocalDateString } = require('./dateHelpers');
 async function saveShownArticlesForUser(
   userId,
   digestItems = [],
-  { tone = '', shownDate = getLocalDateString(new Date()) } = {}
+  { shownDate = getLocalDateString(new Date()) } = {}
 ) {
   const ops = [];
 
@@ -26,7 +26,6 @@ async function saveShownArticlesForUser(
             title: item.title || '',
             summary: item.summary || '',
             topic: item.topic || '',
-            tone: tone || '',
             region: item.region || '',
             section: item.section || '',
             shownDate,

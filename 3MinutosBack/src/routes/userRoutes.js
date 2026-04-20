@@ -25,6 +25,74 @@ function validateDeliveryTime(value) {
   return /^\d{2}:\d{2}$/.test(String(value || ''));
 }
 
+async function savePreparedDigestRun(user, digest, deliveryDate) {
+  const now = new Date();
+
+  return UserDeliveryRun.findOneAndUpdate(
+    {
+      userId: user._id,
+      deliveryDate,
+      deliveryTime: user.deliveryTime,
+    },
+    {
+      $set: {
+        status: 'prepared',
+        digest,
+        preparedAt: now,
+        errorMessage: '',
+        preferencesSnapshot: {
+          topics: user.topics || [],
+          tone: user.tone || 'neutro',
+          deliveryTime: user.deliveryTime,
+        },
+      },
+    },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+    }
+  ).lean();
+}
+
+async function triggerBackgroundDigestRefresh(user, deliveryDate) {
+  try {
+    const digest = await buildDigestForUser(user._id);
+    await savePreparedDigestRun(user, digest, deliveryDate);
+    console.log(
+      `✅ Digest refrescado en background para ${user.name} (${user._id})`
+    );
+  } catch (error) {
+    console.error(
+      `❌ Error refrescando digest en background para ${user._id}:`,
+      error.message
+    );
+
+    await UserDeliveryRun.findOneAndUpdate(
+      {
+        userId: user._id,
+        deliveryDate,
+        deliveryTime: user.deliveryTime,
+      },
+      {
+        $set: {
+          status: 'error',
+          errorMessage: error.message || 'Background digest refresh failed',
+          preferencesSnapshot: {
+            topics: user.topics || [],
+            tone: user.tone || 'neutro',
+            deliveryTime: user.deliveryTime,
+          },
+        },
+      },
+      {
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+  }
+}
+
 router.post('/preferences', async (req, res) => {
   try {
     const {
@@ -153,7 +221,7 @@ router.get('/:userId/digest', async (req, res) => {
 
     const deliveryDate = getLocalDateString(new Date());
 
-    const existingRun = await UserDeliveryRun.findOne({
+    const todaysPreparedRun = await UserDeliveryRun.findOne({
       userId: user._id,
       deliveryDate,
       status: 'prepared',
@@ -162,12 +230,27 @@ router.get('/:userId/digest', async (req, res) => {
       .sort({ preparedAt: -1, createdAt: -1 })
       .lean();
 
-    if (existingRun?.digest) {
-      return res.json(existingRun.digest);
+    if (todaysPreparedRun?.digest) {
+      return res.json(todaysPreparedRun.digest);
     }
 
-    const result = await buildDigestForUser(req.params.userId);
-    return res.json(result);
+    const latestPreparedRun = await UserDeliveryRun.findOne({
+      userId: user._id,
+      status: 'prepared',
+      digest: { $ne: null },
+    })
+      .sort({ preparedAt: -1, createdAt: -1 })
+      .lean();
+
+    if (latestPreparedRun?.digest) {
+      triggerBackgroundDigestRefresh(user, deliveryDate);
+      return res.json(latestPreparedRun.digest);
+    }
+
+    const digest = await buildDigestForUser(req.params.userId);
+    await savePreparedDigestRun(user, digest, deliveryDate);
+
+    return res.json(digest);
   } catch (error) {
     if (error.message === 'User not found') {
       return res.status(404).json({ error: error.message });
@@ -193,9 +276,12 @@ router.post('/:userId/digest/refresh', async (req, res) => {
       return res.status(400).json({ error: 'User is inactive' });
     }
 
-    const result = await buildDigestForUser(req.params.userId);
+    const deliveryDate = getLocalDateString(new Date());
+    const digest = await buildDigestForUser(req.params.userId);
 
-    return res.json(result);
+    await savePreparedDigestRun(user, digest, deliveryDate);
+
+    return res.json(digest);
   } catch (error) {
     if (error.message === 'User not found') {
       return res.status(404).json({ error: error.message });
@@ -238,13 +324,17 @@ router.post('/:userId/digest/mark-shown', async (req, res) => {
 
 router.get('/:userId/shown-articles', async (req, res) => {
   try {
-    const items = await UserShownArticle.find({
-      userId: req.params.userId,
-    })
+    const user = await UserPreference.findById(req.params.userId).lean();
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const articles = await UserShownArticle.find({ userId: user._id })
       .sort({ shownAt: -1, createdAt: -1 })
       .lean();
 
-    return res.json(items);
+    return res.json(articles);
   } catch (error) {
     return res.status(500).json({ error: error.message || 'Failed to fetch shown articles' });
   }
@@ -261,7 +351,7 @@ router.patch('/preferences/:userId/push-token', async (req, res) => {
     const user = await UserPreference.findByIdAndUpdate(
       req.params.userId,
       { $set: { expoPushToken } },
-      { new: true, runValidators: true }
+      { new: true }
     ).lean();
 
     if (!user) {

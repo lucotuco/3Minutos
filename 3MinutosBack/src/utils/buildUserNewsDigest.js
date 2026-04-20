@@ -21,45 +21,41 @@ async function buildUserNewsDigest({
     alreadyShownUrls,
   });
 
-  const items = [];
+  const items = await Promise.all(
+    picks.map(async (pick) => {
+      if (!pick.article) {
+        return {
+          topic: pick.topic,
+          articleId: null,
+          title: null,
+          url: null,
+          section: null,
+          region: null,
+          tags: [],
+          summary: null,
+          cached: false,
+          score: null,
+          finalScore: null,
+        };
+      }
 
-  for (const pick of picks) {
-    if (!pick.article) {
-      items.push({
+      const summaryResult = await generateArticleSummaryVariant(pick.article._id, tone);
+
+      return {
         topic: pick.topic,
-        articleId: null,
-        title: null,
-        url: null,
-        section: null,
-        region: null,
-        tags: [],
-        summary: null,
-        cached: false,
-        score: null,
-        finalScore: null,
-      });
-      continue;
-    }
-
-    const summaryResult = await generateArticleSummaryVariant(
-      pick.article._id,
-      tone
-    );
-
-    items.push({
-      topic: pick.topic,
-      articleId: String(pick.article._id),
-      title: pick.article.title,
-      url: pick.article.url,
-      section: pick.article.section,
-      region: pick.article.region,
-      tags: pick.article.tags || [],
-      summary: summaryResult.summary,
-      cached: summaryResult.cached,
-      score: pick.article.score ?? null,
-      finalScore: pick.article.finalScore ?? null,
-    });
-  }
+        articleId: String(pick.article._id),
+        title: pick.article.title,
+        url: pick.article.url,
+        section: pick.article.section,
+        region: pick.article.region,
+        tags: pick.article.tags || [],
+        summary: summaryResult.summary,
+        cached: summaryResult.cached,
+        score: pick.article.score ?? null,
+        finalScore: pick.article.finalScore ?? null,
+      };
+    })
+  );
 
   return {
     tone,

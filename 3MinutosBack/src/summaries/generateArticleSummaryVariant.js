@@ -1,34 +1,23 @@
 const Article = require('../models/Article');
 const { openai, OPENAI_MODEL } = require('../config/openai');
 
-function buildSummaryPrompt(article, tone) {
-  const toneInstructions = {
-    neutro:
-      'Escribí un resumen claro, directo y equilibrado, con tono periodístico neutral.',
-    cercano:
-      'Escribí un resumen claro, natural y cercano, fácil de leer, sin sonar infantil.',
-    especialista:
-      'Escribí un resumen con más precisión y contexto técnico, manteniéndolo entendible.',
-    breve:
-      'Escribí un resumen muy corto, concreto y útil, en 1 o 2 frases.',
-  };
+const SUMMARY_CACHE_KEY = 'default';
 
+function buildSummaryPrompt(article) {
   return `
 Sos un editor de noticias.
-Tu tarea es escribir una síntesis informativa breve pero sustanciosa de la noticia.
 
-Reglas:
-- Escribí entre 2 y 4 oraciones.
-- No repitas el título ni lo parafrasees apenas de no ser necesario.
-- Incluí el dato principal de forma explícita.
-- Sumá contexto o consecuencia cuando esté disponible.
-- Si la noticia es deportiva, incluí claramente el resultado o el hecho deportivo principal.
-- Si la noticia es de turismo/lifestyle, explicá qué lugar o propuesta menciona y por qué puede interesar.
-- Si la noticia es económica o política, explicá qué cambió, qué se espera o por qué importa.
-- No inventes datos.
-- No uses frases vacías ni genéricas.
-- El texto tiene que dejar al usuario con una idea bastante clara de la noticia, no solo con una pista.
-${toneInstructions[tone] || toneInstructions.neutro}
+Tu tarea es escribir un resumen MUY corto, claro y útil para una app mobile donde deben entrar 3 noticias en una sola vista.
+
+Reglas obligatorias:
+- Escribí 1 o 2 oraciones como máximo.
+- Ideal: entre 20 y 35 palabras en total.
+- Decí el hecho principal de forma directa.
+- Solo agregá contexto si entra en muy pocas palabras.
+- No repitas el título.
+- No uses introducciones, relleno ni frases genéricas.
+- No inventes nada.
+- Tiene que entenderse rápido en pantalla chica.
 
 Noticia:
 Título: ${article.title || ''}
@@ -41,14 +30,14 @@ Devolvé solo el resumen final.
 `.trim();
 }
 
-async function generateArticleSummaryVariant(articleId, tone = 'neutro') {
+async function generateArticleSummaryVariant(articleId) {
   const article = await Article.findById(articleId);
 
   if (!article) {
     throw new Error('Article not found');
   }
 
-  const existing = article.summaryVariants?.get?.(tone);
+  const existing = article.summaryVariants?.get?.(SUMMARY_CACHE_KEY);
   if (existing) {
     return {
       article,
@@ -57,25 +46,24 @@ async function generateArticleSummaryVariant(articleId, tone = 'neutro') {
     };
   }
 
-  const prompt = buildSummaryPrompt(article, tone);
+  const prompt = buildSummaryPrompt(article);
 
   const response = await openai.responses.create({
     model: OPENAI_MODEL,
     input: prompt,
+    max_output_tokens: 90,
   });
 
-  const summary =
-    response.output_text?.trim?.() ||
-    '';
+  const summary = response.output_text?.trim?.() || '';
 
   if (!summary) {
     article.summaryStatus = 'error';
-    article.summaryError = `Empty summary for tone: ${tone}`;
+    article.summaryError = 'Empty summary response';
     await article.save();
     throw new Error('Empty summary response');
   }
 
-  article.summaryVariants.set(tone, summary);
+  article.summaryVariants.set(SUMMARY_CACHE_KEY, summary);
   article.summaryStatus = 'done';
   article.summaryGeneratedAt = new Date();
   article.summaryError = '';
