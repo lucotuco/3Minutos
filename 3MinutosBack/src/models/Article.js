@@ -93,54 +93,47 @@ const articleSchema = new mongoose.Schema(
       default: '',
     },
     embeddingText: {
-  type: String,
-  default: '',
-},
-
-embeddingModel: {
-  type: String,
-  default: '',
-},
-
-embeddingStatus: {
-  type: String,
-  enum: ['pending', 'done', 'error'],
-  default: 'pending',
-},
-
-embeddingGeneratedAt: {
-  type: Date,
-  default: null,
-},
-embeddingError: {
-  type: String,
-  default: '',
-},
-embedding: {
-  type: [Number],
-  default: [],
-},
-summaryVariants: {
-  type: Map,
-  of: String,
-  default: {},
-},
-
-summaryStatus: {
-  type: String,
-  enum: ['pending', 'done', 'error'],
-  default: 'pending',
-},
-
-summaryGeneratedAt: {
-  type: Date,
-  default: null,
-},
-
-summaryError: {
-  type: String,
-  default: '',
-},
+      type: String,
+      default: '',
+    },
+    embeddingModel: {
+      type: String,
+      default: '',
+    },
+    embeddingStatus: {
+      type: String,
+      enum: ['pending', 'done', 'error'],
+      default: 'pending',
+    },
+    embeddingGeneratedAt: {
+      type: Date,
+      default: null,
+    },
+    embeddingError: {
+      type: String,
+      default: '',
+    },
+    embedding: {
+      type: [Number],
+      default: [],
+    },
+    summary: {
+      type: String,
+      default: '',
+    },
+    summaryStatus: {
+      type: String,
+      enum: ['pending', 'done', 'error'],
+      default: 'pending',
+    },
+    summaryGeneratedAt: {
+      type: Date,
+      default: null,
+    },
+    summaryError: {
+      type: String,
+      default: '',
+    },
   },
   {
     timestamps: true,

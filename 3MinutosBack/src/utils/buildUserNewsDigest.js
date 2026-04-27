@@ -1,16 +1,14 @@
 const { pickBestArticlePerTopic } = require('../utils/pickBestArticlePerTopic');
-const { generateArticleSummaryVariant } = require('../summaries/generateArticleSummaryVariant');
+const { generateArticleSummary } = require('../summaries/generateArticleSummary');
 
 async function buildUserNewsDigest({
   topics = [],
-  tone = 'neutro',
   alreadyShownUrls = [],
   perTopicLimit = 10,
   numCandidates = 100,
 } = {}) {
   if (!Array.isArray(topics) || topics.length === 0) {
     return {
-      tone,
       items: [],
     };
   }
@@ -39,7 +37,7 @@ async function buildUserNewsDigest({
         };
       }
 
-      const summaryResult = await generateArticleSummaryVariant(pick.article._id, tone);
+      const summaryResult = await generateArticleSummary(pick.article._id);
 
       return {
         topic: pick.topic,
@@ -58,7 +56,6 @@ async function buildUserNewsDigest({
   );
 
   return {
-    tone,
     items,
   };
 }

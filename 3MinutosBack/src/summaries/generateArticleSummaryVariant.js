@@ -1,8 +1,6 @@
 const Article = require('../models/Article');
 const { openai, OPENAI_MODEL } = require('../config/openai');
 
-const SUMMARY_CACHE_KEY = 'default';
-
 function buildSummaryPrompt(article) {
   return `
 Sos un editor de noticias.
@@ -30,18 +28,18 @@ Devolvé solo el resumen final.
 `.trim();
 }
 
-async function generateArticleSummaryVariant(articleId) {
+async function generateArticleSummary(articleId) {
   const article = await Article.findById(articleId);
 
   if (!article) {
     throw new Error('Article not found');
   }
 
-  const existing = article.summaryVariants?.get?.(SUMMARY_CACHE_KEY);
-  if (existing) {
+  const existingSummary = String(article.summary || '').trim();
+  if (existingSummary) {
     return {
       article,
-      summary: existing,
+      summary: existingSummary,
       cached: true,
     };
   }
@@ -63,7 +61,7 @@ async function generateArticleSummaryVariant(articleId) {
     throw new Error('Empty summary response');
   }
 
-  article.summaryVariants.set(SUMMARY_CACHE_KEY, summary);
+  article.summary = summary;
   article.summaryStatus = 'done';
   article.summaryGeneratedAt = new Date();
   article.summaryError = '';
@@ -78,5 +76,5 @@ async function generateArticleSummaryVariant(articleId) {
 }
 
 module.exports = {
-  generateArticleSummaryVariant,
+  generateArticleSummary,
 };
