@@ -1,6 +1,38 @@
 const { pickBestArticlePerTopic } = require('../utils/pickBestArticlePerTopic');
 const { generateArticleSummary } = require('../summaries/generateArticleSummary');
 
+function cleanText(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function limitText(value, maxLength = 220) {
+  const text = cleanText(value);
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength).trim()}...`;
+}
+
+function buildFallbackSummary(article) {
+  const rawSummary = cleanText(article.rawSummary || article.contentSnippet);
+
+  if (rawSummary) {
+    return limitText(rawSummary, 220);
+  }
+
+  const title = cleanText(article.title);
+
+  if (title) {
+    return limitText(title, 180);
+  }
+
+  return 'Resumen no disponible por el momento.';
+}
+
 async function buildUserNewsDigest({
   topics = [],
   alreadyShownUrls = [],
@@ -32,12 +64,24 @@ async function buildUserNewsDigest({
           tags: [],
           summary: null,
           cached: false,
+          fallback: false,
           score: null,
           finalScore: null,
         };
       }
 
-      const summaryResult = await generateArticleSummary(pick.article._id);
+      let summaryResult;
+
+      try {
+        summaryResult = await generateArticleSummary(pick.article._id);
+      } catch (error) {
+        summaryResult = {
+          summary: buildFallbackSummary(pick.article),
+          cached: false,
+          fallback: true,
+          error: error.message || 'Summary generation failed',
+        };
+      }
 
       return {
         topic: pick.topic,
@@ -48,7 +92,8 @@ async function buildUserNewsDigest({
         region: pick.article.region,
         tags: pick.article.tags || [],
         summary: summaryResult.summary,
-        cached: summaryResult.cached,
+        cached: Boolean(summaryResult.cached),
+        fallback: Boolean(summaryResult.fallback),
         score: pick.article.score ?? null,
         finalScore: pick.article.finalScore ?? null,
       };

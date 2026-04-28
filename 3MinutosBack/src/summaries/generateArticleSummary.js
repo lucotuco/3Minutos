@@ -28,6 +28,84 @@ Devolvé solo el resumen final.
 `.trim();
 }
 
+function cleanText(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function limitText(value, maxLength = 220) {
+  const text = cleanText(value);
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength).trim()}...`;
+}
+
+function buildFallbackSummary(article) {
+  const rawSummary = cleanText(article.rawSummary || article.contentSnippet);
+
+  if (rawSummary) {
+    return limitText(rawSummary, 220);
+  }
+
+  const title = cleanText(article.title);
+
+  if (title) {
+    return limitText(title, 180);
+  }
+
+  return 'Resumen no disponible por el momento.';
+}
+
+function extractResponseText(response) {
+  const directText = cleanText(response?.output_text);
+
+  if (directText) {
+    return directText;
+  }
+
+  const output = Array.isArray(response?.output) ? response.output : [];
+
+  const parts = [];
+
+  for (const item of output) {
+    const content = Array.isArray(item?.content) ? item.content : [];
+
+    for (const contentItem of content) {
+      if (contentItem?.type === 'output_text' && contentItem?.text) {
+        parts.push(contentItem.text);
+      }
+
+      if (contentItem?.type === 'text' && contentItem?.text) {
+        parts.push(contentItem.text);
+      }
+    }
+  }
+
+  return cleanText(parts.join(' '));
+}
+
+async function saveFallbackSummary(article, errorMessage) {
+  const fallbackSummary = buildFallbackSummary(article);
+
+  article.summary = fallbackSummary;
+  article.summaryStatus = 'done';
+  article.summaryGeneratedAt = new Date();
+  article.summaryError = errorMessage || '';
+
+  await article.save();
+
+  return {
+    article,
+    summary: fallbackSummary,
+    cached: false,
+    fallback: true,
+  };
+}
+
 async function generateArticleSummary(articleId) {
   const article = await Article.findById(articleId);
 
@@ -35,44 +113,54 @@ async function generateArticleSummary(articleId) {
     throw new Error('Article not found');
   }
 
-  const existingSummary = String(article.summary || '').trim();
+  const existingSummary = cleanText(article.summary);
+
   if (existingSummary) {
     return {
       article,
       summary: existingSummary,
       cached: true,
+      fallback: false,
     };
   }
 
   const prompt = buildSummaryPrompt(article);
 
-  const response = await openai.responses.create({
-    model: OPENAI_MODEL,
-    input: prompt,
-    max_output_tokens: 90,
-  });
+  try {
+    const response = await openai.responses.create({
+      model: OPENAI_MODEL,
+      input: prompt,
+      max_output_tokens: 250,
+    });
 
-  const summary = response.output_text?.trim?.() || '';
+    const summary = extractResponseText(response);
 
-  if (!summary) {
-    article.summaryStatus = 'error';
-    article.summaryError = 'Empty summary response';
+    if (!summary) {
+      return saveFallbackSummary(
+        article,
+        `OpenAI returned empty summary. status=${response?.status || 'unknown'}`
+      );
+    }
+
+    article.summary = summary;
+    article.summaryStatus = 'done';
+    article.summaryGeneratedAt = new Date();
+    article.summaryError = '';
+
     await article.save();
-    throw new Error('Empty summary response');
+
+    return {
+      article,
+      summary,
+      cached: false,
+      fallback: false,
+    };
+  } catch (error) {
+    return saveFallbackSummary(
+      article,
+      error.message || 'OpenAI summary generation failed'
+    );
   }
-
-  article.summary = summary;
-  article.summaryStatus = 'done';
-  article.summaryGeneratedAt = new Date();
-  article.summaryError = '';
-
-  await article.save();
-
-  return {
-    article,
-    summary,
-    cached: false,
-  };
 }
 
 module.exports = {
