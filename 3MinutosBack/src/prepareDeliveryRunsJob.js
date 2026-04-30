@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const { prepareUpcomingDeliveryRuns } = require('./utils/prepareUpcomingDeliveryRuns.js');
+const { sendPreparedDigestNotifications } = require('./sendPreparedDigestNotificationsJob');
 const {
   APP_TIME_ZONE,
   getLocalDateString,
@@ -23,7 +24,7 @@ function formatArgentinaHour(date = new Date()) {
 
 function startPrepareDeliveryRunsJob() {
   cron.schedule(
-    '*/5 * * * *',
+    '* * * * *',
     async () => {
       try {
         const now = new Date();
@@ -37,8 +38,8 @@ function startPrepareDeliveryRunsJob() {
           minutesAhead: 10,
           now,
         });
-        const { sendPreparedDigestNotifications } = require('./sendPreparedDigestNotificationsJob');
-await sendPreparedDigestNotifications();
+
+        await sendPreparedDigestNotifications({ now });
 
         console.log('📦 Corridas preparadas:');
         console.log(JSON.stringify(results, null, 2));

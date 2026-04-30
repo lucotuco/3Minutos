@@ -15,12 +15,20 @@ function isRunDue(run, now = new Date()) {
   if (!run?.deliveryDate || !run?.deliveryTime) return false;
 
   const today = getLocalDateString(now);
-  if (run.deliveryDate !== today) return false;
+
+  if (run.deliveryDate !== today) {
+    return false;
+  }
 
   const deliveryMinutes = parseTimeToMinutes(run.deliveryTime);
-  if (deliveryMinutes === null) return false;
 
-  return deliveryMinutes <= getMinutesNow(now);
+  if (deliveryMinutes === null) {
+    return false;
+  }
+
+  const currentMinutes = getMinutesNow(now);
+
+  return deliveryMinutes <= currentMinutes;
 }
 
 async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
@@ -32,10 +40,12 @@ async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
   isSendingNotifications = true;
 
   try {
+    const today = getLocalDateString(now);
+
     const runs = await UserDeliveryRun.find({
       status: 'prepared',
       notificationSentAt: null,
-      deliveryDate: getLocalDateString(now),
+      deliveryDate: today,
       digest: { $ne: null },
     })
       .sort({ deliveryTime: 1, preparedAt: 1, createdAt: 1 })
@@ -81,7 +91,9 @@ async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
 
         const itemsCount = Array.isArray(run.digest?.digest?.items)
           ? run.digest.digest.items.length
-          : 0;
+          : Array.isArray(run.digest?.items)
+            ? run.digest.items.length
+            : 0;
 
         const title = 'Tu digest ya está listo';
         const body =
@@ -90,6 +102,7 @@ async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
             : 'Ya tenés tu nuevo digest disponible.';
 
         console.log('   enviando push...');
+
         const tickets = await sendPushNotification({
           to: user.expoPushToken,
           title,
@@ -122,7 +135,7 @@ async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
 
 function startSendPreparedDigestNotificationsJob() {
   cron.schedule(
-    '*/5 * * * *',
+    '* * * * *',
     async () => {
       await sendPreparedDigestNotifications();
     },

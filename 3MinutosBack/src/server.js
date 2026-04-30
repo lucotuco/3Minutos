@@ -22,7 +22,7 @@ async function start() {
     });
 
     startPrepareDeliveryRunsJob();
-    console.log('🕒 Job de corridas programado cada 5 minutos');
+    console.log('🕒 Job de corridas programado cada minuto');
 
     startHourlyIngestionJob();
     console.log('📰 Job de ingesta programado cada hora');
