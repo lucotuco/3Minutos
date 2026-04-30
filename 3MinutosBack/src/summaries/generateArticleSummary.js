@@ -23,6 +23,15 @@ function cleanText(value) {
     .trim();
 }
 
+function getIncompleteReason(response) {
+  return (
+    response?.incomplete_details?.reason ||
+    response?.incompleteDetails?.reason ||
+    response?.status ||
+    'unknown'
+  );
+}
+
 function buildFallbackSummary(article) {
   const sourceText = cleanText(article.rawSummary || article.contentSnippet);
 
@@ -44,31 +53,23 @@ function buildSummaryPrompt(article) {
   const sourceText = cleanText(article.rawSummary || article.contentSnippet);
 
   return `
-Sos un editor de noticias para una app mobile llamada 3 Minutos.
+Resumí esta noticia para una app mobile de noticias.
 
-Tu tarea es escribir un resumen corto, claro y útil.
-
-Reglas obligatorias:
-- Escribí 1 o 2 oraciones.
+Reglas:
+- Escribí en español.
+- Hacé 1 o 2 oraciones.
 - Preferentemente entre 20 y 45 palabras.
-- Si la noticia necesita un poco más para entenderse, podés extenderte, pero no uses relleno.
-- Decí el hecho principal de forma directa.
+- Que sea claro, directo y completo.
 - No repitas el título literalmente.
-- No uses introducciones.
 - No uses HTML.
 - No uses listas.
 - No inventes datos.
 - No termines con puntos suspensivos.
-- El resumen debe quedar completo, no cortado.
 
-Noticia:
 Título: ${title}
-Sección: ${article.section || ''}
-Región: ${article.region || ''}
-Tags: ${(article.tags || []).join(', ')}
 Texto fuente: ${sourceText}
 
-Devolvé solo el resumen final.
+Resumen:
 `.trim();
 }
 
@@ -140,16 +141,27 @@ async function generateArticleSummary(articleId) {
   try {
     const response = await openai.responses.create({
       model: OPENAI_MODEL,
+      reasoning: {
+        effort: 'minimal',
+      },
       input: prompt,
-      max_output_tokens: 400,
+      max_output_tokens: 1200,
     });
 
     const summary = extractResponseText(response);
 
     if (!summary) {
+      const reason = getIncompleteReason(response);
+
+      console.error('❌ OpenAI devolvió summary vacío');
+      console.error('status:', response?.status);
+      console.error('incomplete_details:', response?.incomplete_details);
+      console.error('articleId:', String(article._id));
+      console.error('title:', article.title);
+
       return saveFallbackSummary(
         article,
-        `OpenAI returned empty summary. status=${response?.status || 'unknown'}`
+        `OpenAI returned empty summary. status=${response?.status || 'unknown'} reason=${reason}`
       );
     }
 
@@ -167,6 +179,11 @@ async function generateArticleSummary(articleId) {
       fallback: false,
     };
   } catch (error) {
+    console.error('❌ Error generando summary con OpenAI');
+    console.error('articleId:', String(article._id));
+    console.error('title:', article.title);
+    console.error('error:', error.message);
+
     return saveFallbackSummary(
       article,
       error.message || 'OpenAI summary generation failed'
