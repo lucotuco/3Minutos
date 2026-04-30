@@ -26,6 +26,36 @@ function validateDeliveryTime(value) {
   return hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59;
 }
 
+function normalizeExpoPushToken(body = {}) {
+  const rawToken =
+    body.expoPushToken ||
+    body.pushToken ||
+    body.token ||
+    body.devicePushToken ||
+    '';
+
+  return String(rawToken || '').trim();
+}
+
+function isValidExpoPushToken(token) {
+  if (!token || typeof token !== 'string') return false;
+
+  const cleanToken = token.trim();
+
+  return (
+    cleanToken.startsWith('ExponentPushToken[') ||
+    cleanToken.startsWith('ExpoPushToken[')
+  );
+}
+
+function userNotFoundResponse(res) {
+  return res.status(404).json({
+    error: 'User not found',
+    code: 'USER_NOT_FOUND',
+    shouldClearLocalSession: true,
+  });
+}
+
 async function savePreparedDigestRun(user, digest, deliveryDate) {
   const now = new Date();
 
@@ -98,6 +128,7 @@ router.post('/preferences', async (req, res) => {
 
     const cleanName = String(name).trim();
     const cleanTopics = normalizeTopics(topics);
+    const expoPushToken = normalizeExpoPushToken(req.body);
 
     if (!cleanName) {
       return res.status(400).json({ error: 'name is required' });
@@ -111,11 +142,19 @@ router.post('/preferences', async (req, res) => {
       return res.status(400).json({ error: 'invalid deliveryTime format, expected HH:MM' });
     }
 
+    if (expoPushToken && !isValidExpoPushToken(expoPushToken)) {
+      return res.status(400).json({
+        error: 'invalid expoPushToken format',
+        receivedStart: expoPushToken.slice(0, 30),
+      });
+    }
+
     const user = await UserPreference.create({
       name: cleanName,
       topics: cleanTopics,
       deliveryTime,
       isActive: Boolean(isActive),
+      expoPushToken: expoPushToken || null,
     });
 
     return res.status(201).json(user);
@@ -129,7 +168,7 @@ router.get('/preferences/:userId', async (req, res) => {
     const user = await UserPreference.findById(req.params.userId).lean();
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return userNotFoundResponse(res);
     }
 
     return res.json(user);
@@ -142,6 +181,7 @@ router.patch('/preferences/:userId', async (req, res) => {
   try {
     const updates = {};
     const { name, topics, deliveryTime, isActive } = req.body || {};
+    const expoPushToken = normalizeExpoPushToken(req.body);
 
     if (name !== undefined) {
       const cleanName = String(name).trim();
@@ -170,6 +210,17 @@ router.patch('/preferences/:userId', async (req, res) => {
       updates.isActive = Boolean(isActive);
     }
 
+    if (expoPushToken) {
+      if (!isValidExpoPushToken(expoPushToken)) {
+        return res.status(400).json({
+          error: 'invalid expoPushToken format',
+          receivedStart: expoPushToken.slice(0, 30),
+        });
+      }
+
+      updates.expoPushToken = expoPushToken;
+    }
+
     const user = await UserPreference.findByIdAndUpdate(
       req.params.userId,
       { $set: updates },
@@ -177,7 +228,7 @@ router.patch('/preferences/:userId', async (req, res) => {
     ).lean();
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return userNotFoundResponse(res);
     }
 
     return res.json(user);
@@ -186,12 +237,50 @@ router.patch('/preferences/:userId', async (req, res) => {
   }
 });
 
+router.patch('/preferences/:userId/push-token', async (req, res) => {
+  try {
+    const expoPushToken = normalizeExpoPushToken(req.body);
+
+    if (!expoPushToken) {
+      return res.status(400).json({
+        error: 'expoPushToken is required',
+        acceptedFields: ['expoPushToken', 'pushToken', 'token', 'devicePushToken'],
+      });
+    }
+
+    if (!isValidExpoPushToken(expoPushToken)) {
+      return res.status(400).json({
+        error: 'invalid expoPushToken format',
+        receivedStart: expoPushToken.slice(0, 30),
+      });
+    }
+
+    const user = await UserPreference.findByIdAndUpdate(
+      req.params.userId,
+      { $set: { expoPushToken } },
+      { new: true, runValidators: true }
+    ).lean();
+
+    if (!user) {
+      return userNotFoundResponse(res);
+    }
+
+    return res.json({
+      ok: true,
+      userId: String(user._id),
+      expoPushToken: user.expoPushToken,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message || 'Failed to save push token' });
+  }
+});
+
 router.get('/:userId/digest', async (req, res) => {
   try {
     const user = await UserPreference.findById(req.params.userId).lean();
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return userNotFoundResponse(res);
     }
 
     if (!user.isActive) {
@@ -232,7 +321,7 @@ router.get('/:userId/digest', async (req, res) => {
     return res.json(digest);
   } catch (error) {
     if (error.message === 'User not found') {
-      return res.status(404).json({ error: error.message });
+      return userNotFoundResponse(res);
     }
 
     if (error.message === 'User is inactive') {
@@ -248,7 +337,7 @@ router.post('/:userId/digest/refresh', async (req, res) => {
     const user = await UserPreference.findById(req.params.userId).lean();
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return userNotFoundResponse(res);
     }
 
     if (!user.isActive) {
@@ -263,7 +352,7 @@ router.post('/:userId/digest/refresh', async (req, res) => {
     return res.json(digest);
   } catch (error) {
     if (error.message === 'User not found') {
-      return res.status(404).json({ error: error.message });
+      return userNotFoundResponse(res);
     }
 
     if (error.message === 'User is inactive') {
@@ -279,7 +368,7 @@ router.post('/:userId/digest/mark-shown', async (req, res) => {
     const user = await UserPreference.findById(req.params.userId).lean();
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return userNotFoundResponse(res);
     }
 
     const { items = [], shownDate } = req.body || {};
@@ -305,7 +394,7 @@ router.get('/:userId/shown-articles', async (req, res) => {
     const user = await UserPreference.findById(req.params.userId).lean();
 
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return userNotFoundResponse(res);
     }
 
     const articles = await UserShownArticle.find({ userId: user._id })
