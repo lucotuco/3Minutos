@@ -11,31 +11,23 @@ function cleanText(value) {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
     .replace(/\s+/g, ' ')
     .trim();
-}
-
-function limitText(value, maxLength = 220) {
-  const text = cleanText(value);
-
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  return `${text.slice(0, maxLength).trim()}...`;
 }
 
 function buildFallbackSummary(article) {
   const sourceText = cleanText(article.rawSummary || article.contentSnippet);
 
   if (sourceText) {
-    return limitText(sourceText, 220);
+    return sourceText;
   }
 
   const title = cleanText(article.title);
 
   if (title) {
-    return limitText(title, 180);
+    return title;
   }
 
   return 'Resumen no disponible por el momento.';

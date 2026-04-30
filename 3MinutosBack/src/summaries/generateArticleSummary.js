@@ -23,27 +23,17 @@ function cleanText(value) {
     .trim();
 }
 
-function limitText(value, maxLength = 220) {
-  const text = cleanText(value);
-
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  return `${text.slice(0, maxLength).trim()}...`;
-}
-
 function buildFallbackSummary(article) {
   const sourceText = cleanText(article.rawSummary || article.contentSnippet);
 
   if (sourceText) {
-    return limitText(sourceText, 220);
+    return sourceText;
   }
 
   const title = cleanText(article.title);
 
   if (title) {
-    return limitText(title, 180);
+    return title;
   }
 
   return 'Resumen no disponible por el momento.';
@@ -54,21 +44,22 @@ function buildSummaryPrompt(article) {
   const sourceText = cleanText(article.rawSummary || article.contentSnippet);
 
   return `
-Sos un editor de noticias.
+Sos un editor de noticias para una app mobile llamada 3 Minutos.
 
-Tu tarea es escribir un resumen MUY corto, claro y útil para una app mobile donde deben entrar 3 noticias en una sola vista.
+Tu tarea es escribir un resumen corto, claro y útil.
 
 Reglas obligatorias:
-- Escribí 1 o 2 oraciones como máximo.
-- Ideal: entre 20 y 35 palabras en total.
+- Escribí 1 o 2 oraciones.
+- Preferentemente entre 20 y 45 palabras.
+- Si la noticia necesita un poco más para entenderse, podés extenderte, pero no uses relleno.
 - Decí el hecho principal de forma directa.
-- Solo agregá contexto si entra en muy pocas palabras.
-- No repitas el título.
-- No uses introducciones, relleno ni frases genéricas.
-- No inventes nada.
+- No repitas el título literalmente.
+- No uses introducciones.
 - No uses HTML.
 - No uses listas.
-- Tiene que entenderse rápido en pantalla chica.
+- No inventes datos.
+- No termines con puntos suspensivos.
+- El resumen debe quedar completo, no cortado.
 
 Noticia:
 Título: ${title}
@@ -150,7 +141,7 @@ async function generateArticleSummary(articleId) {
     const response = await openai.responses.create({
       model: OPENAI_MODEL,
       input: prompt,
-      max_output_tokens: 250,
+      max_output_tokens: 400,
     });
 
     const summary = extractResponseText(response);
