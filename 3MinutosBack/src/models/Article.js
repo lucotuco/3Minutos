@@ -117,6 +117,7 @@ const articleSchema = new mongoose.Schema(
       type: [Number],
       default: [],
     },
+
     summary: {
       type: String,
       default: '',

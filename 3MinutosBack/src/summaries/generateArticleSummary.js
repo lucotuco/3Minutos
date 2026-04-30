@@ -1,35 +1,24 @@
 const Article = require('../models/Article');
 const { openai, OPENAI_MODEL } = require('../config/openai');
 
-function buildSummaryPrompt(article) {
-  return `
-Sos un editor de noticias.
-
-Tu tarea es escribir un resumen MUY corto, claro y útil para una app mobile donde deben entrar 3 noticias en una sola vista.
-
-Reglas obligatorias:
-- Escribí 1 o 2 oraciones como máximo.
-- Ideal: entre 20 y 35 palabras en total.
-- Decí el hecho principal de forma directa.
-- Solo agregá contexto si entra en muy pocas palabras.
-- No repitas el título.
-- No uses introducciones, relleno ni frases genéricas.
-- No inventes nada.
-- Tiene que entenderse rápido en pantalla chica.
-
-Noticia:
-Título: ${article.title || ''}
-Sección: ${article.section || ''}
-Región: ${article.region || ''}
-Tags: ${(article.tags || []).join(', ')}
-Resumen fuente: ${article.rawSummary || article.contentSnippet || ''}
-
-Devolvé solo el resumen final.
-`.trim();
+function stripHtml(value) {
+  return String(value || '')
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function cleanText(value) {
-  return String(value || '')
+  return stripHtml(value)
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -45,10 +34,10 @@ function limitText(value, maxLength = 220) {
 }
 
 function buildFallbackSummary(article) {
-  const rawSummary = cleanText(article.rawSummary || article.contentSnippet);
+  const sourceText = cleanText(article.rawSummary || article.contentSnippet);
 
-  if (rawSummary) {
-    return limitText(rawSummary, 220);
+  if (sourceText) {
+    return limitText(sourceText, 220);
   }
 
   const title = cleanText(article.title);
@@ -60,6 +49,38 @@ function buildFallbackSummary(article) {
   return 'Resumen no disponible por el momento.';
 }
 
+function buildSummaryPrompt(article) {
+  const title = cleanText(article.title);
+  const sourceText = cleanText(article.rawSummary || article.contentSnippet);
+
+  return `
+Sos un editor de noticias.
+
+Tu tarea es escribir un resumen MUY corto, claro y útil para una app mobile donde deben entrar 3 noticias en una sola vista.
+
+Reglas obligatorias:
+- Escribí 1 o 2 oraciones como máximo.
+- Ideal: entre 20 y 35 palabras en total.
+- Decí el hecho principal de forma directa.
+- Solo agregá contexto si entra en muy pocas palabras.
+- No repitas el título.
+- No uses introducciones, relleno ni frases genéricas.
+- No inventes nada.
+- No uses HTML.
+- No uses listas.
+- Tiene que entenderse rápido en pantalla chica.
+
+Noticia:
+Título: ${title}
+Sección: ${article.section || ''}
+Región: ${article.region || ''}
+Tags: ${(article.tags || []).join(', ')}
+Texto fuente: ${sourceText}
+
+Devolvé solo el resumen final.
+`.trim();
+}
+
 function extractResponseText(response) {
   const directText = cleanText(response?.output_text);
 
@@ -68,7 +89,6 @@ function extractResponseText(response) {
   }
 
   const output = Array.isArray(response?.output) ? response.output : [];
-
   const parts = [];
 
   for (const item of output) {
