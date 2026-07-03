@@ -221,5 +221,5 @@ const articleSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
+articleSchema.index({ createdAt: 1 }, { expireAfterSeconds: 2592000 });
 module.exports = mongoose.model('Article', articleSchema, 'articles');
