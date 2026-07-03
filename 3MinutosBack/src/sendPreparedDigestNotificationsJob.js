@@ -53,8 +53,7 @@ async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
 
     const dueRuns = runs.filter((run) => isRunDue(run, now));
 
-    if (dueRuns.length) {
-      console.log('hay corridas prepared vencidas para notificar');
+    if (!dueRuns.length) {
       return;
     }
 
