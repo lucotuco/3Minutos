@@ -543,6 +543,14 @@ router.post(
 
       await savePreparedDigestRun(user, digest, deliveryDate);
 
+      const refreshItems = digest?.digest?.items || digest?.items || [];
+      
+      if (refreshItems.length > 0) {
+        await saveShownArticlesForUser(user._id, refreshItems, {
+          shownDate: deliveryDate,
+        });
+      }
+
       return res.json(digest);
     } catch (error) {
       console.error('[POST /users/:userId/digest/refresh]', error);

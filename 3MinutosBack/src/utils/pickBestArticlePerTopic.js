@@ -102,8 +102,8 @@ function isUsableDigestArticle(article, usedUrls, usedTitles = []) {
     }
   }
 
-  // UMBRAL: Si más del 55% de las palabras del título más corto coinciden, lo bloqueamos.
-  if (maxSim >= 0.55) {
+  // UMBRAL: Si más del 40% de las palabras del título más corto coinciden, lo bloqueamos.
+  if (maxSim >= 0.40) {
     console.log(`      ⛔ [SIMILITUD ${Math.round(maxSim*100)}%] BLOQUEADO:`);
     console.log(`         ❌ Intentó entrar: "${candidateTitle}"`);
     console.log(`         📄 Ya habías leído: "${mostSimilarTitle}"\n`);
