@@ -482,7 +482,9 @@ router.get(
         .lean();
 
       if (latestPreparedRun?.digest) {
+        if (!isRefreshOnCooldown(latestPreparedRun)) {
         triggerBackgroundDigestRefresh(user, deliveryDate);
+        }
         return res.json(latestPreparedRun.digest);
       }
 
