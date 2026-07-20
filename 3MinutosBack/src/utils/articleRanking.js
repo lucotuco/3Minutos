@@ -27,8 +27,25 @@ function getFreshnessScore(publishedAt) {
 }
 
 function getRankingScore(article = {}) {
-  const importanceScore = Number(article.importanceScore || 0);
+  let importanceScore = Number(article.importanceScore || 0);
   const freshnessScore = getFreshnessScore(article.publishedAt);
+  const hoursOld = getHoursDiff(article.publishedAt);
+
+  // LA REGLA UNIVERSAL DE CADUCIDAD
+  // Detectamos palabras clave típicas de noticias "útiles solo antes de que ocurran"
+  const title = String(article.title || '').toLowerCase();
+  const isPreview = title.includes('en vivo') || 
+                    title.includes('a qué hora') || 
+                    title.includes('a que hora') || 
+                    title.includes('dónde ver') || 
+                    title.includes('donde ver') || 
+                    title.includes('minuto a minuto') || 
+                    title.includes('formaciones');
+
+  // Si es una previa o minuto a minuto, y pasaron más de 4 horas, la noticia ya es basura.
+  if (isPreview && hoursOld > 4) {
+    importanceScore = importanceScore * 0.2; // Le destruimos el puntaje (lo bajamos al 20%)
+  }
 
   const rankingScore = clamp(
     importanceScore * 0.6 + freshnessScore * 0.4,

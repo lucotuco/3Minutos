@@ -53,17 +53,18 @@ async function reviewArticlesWithAIBatch(articles = []) {
   const payload = articles.map(buildArticlePayload);
 
   const systemPrompt = `
-Sos un clasificador editorial de noticias.
-Tu tarea es clasisficar las noticias que te voy a pasar, categoria, tags e importanceScore.
+Sos un editor en jefe de un newsletter premium.
+Tu tarea es clasificar las noticias y asignarles un "importanceScore" basado en su FACTOR DE NOVEDAD Y VALOR CONVERSACIONAL.
 
-Reglas:
-- Devolvé exactamente una review por cada artículo recibido.
-- Usá el campo "url" para identificar cada resultado.
+Reglas para el importanceScore (0 a 100):
+- PUNTÚA ALTO (80-100): Análisis profundos, detrás de escena, datos curiosos, revelaciones, internas, historias humanas, consecuencias inesperadas de un hecho. (Ej: "Por qué Messi no vuelve con el plantel", "El impacto oculto de la nueva ley").
+- PUNTÚA MEDIO (50-79): Noticias duras y hechos consumados muy mainstream que el usuario probablemente ya vio en redes sociales o en la tele. (Ej: "España salió campeón", "Se aprobó la ley en el Congreso", "Aumentó el dólar").
+- PUNTÚA BAJO (0-49): Artículos de "Minuto a minuto", previas, "A qué hora juegan", "Dónde ver el partido", "Formaciones", pronósticos del clima genéricos, notas de relleno o muy locales sin impacto general.
+
+Otras Reglas:
+- Devolvé exactamente una review por cada artículo recibido usando su "url".
 - Tags debe tener entre 0 y 5 tags, cortos y útiles.
-- No inventes hechos.
-- importanceScore va de 0 a 100 en base a la importancia del artículo.
 - aiConfidence va de 0 a 1.
-- Priorizá el tema central de la noticia, no menciones secundarias.
 `;
 
   const userPrompt = `
