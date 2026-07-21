@@ -1,5 +1,5 @@
 const cron = require('node-cron');
-const { generateDailyContext } = require('../ingestion/generateDailyContext');
+const { generateDailyContext } = require('./ingestion/generateDailyContext');
 
 function startGlobalContextCron() {
   // Expresión Cron: "0 6,18 * * *" -> Se ejecuta a las 06:00 AM y a las 18:00 PM todos los días.
