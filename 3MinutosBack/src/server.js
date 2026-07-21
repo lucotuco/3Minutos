@@ -7,6 +7,8 @@ const { startPrepareDeliveryRunsJob } = require('./prepareDeliveryRunsJob');
 const { startNotificationJob } = require('./sendNotificationCronJob');
 const { startHourlyIngestionJob, runHourlyIngestion } = require('./ingestionJob');
 const { startCleanupAudiosJob } = require('./cleanupAudiosJob');
+const { startGlobalContextCron } = require('./cronGlobalContextCron');
+
 
 const PORT = Number(process.env.PORT || 3000);
 
@@ -49,6 +51,8 @@ async function start() {
   try {
     await connectDB();
 
+    startGlobalContextCron();
+
     app.listen(PORT, () => {
       console.log(`✅ Servidor escuchando en puerto ${PORT}`);
     });
@@ -57,12 +61,14 @@ async function start() {
     const enablePrepareDigestJob = envFlag('ENABLE_PREPARE_DIGEST_JOB', false);
     const enableNotificationJob = envFlag('ENABLE_NOTIFICATION_JOB', false);
     const runIngestionOnBoot = envFlag('RUN_INGESTION_ON_BOOT', false);
+    const enableGlobalContextJob = envFlag('ENABLE_GLOBAL_CONTEXT_JOB', true);
 
     console.log('⚙️ Jobs habilitados:');
     console.log(` ENABLE_INGESTION_JOB=${enableIngestionJob}`);
     console.log(` ENABLE_PREPARE_DIGEST_JOB=${enablePrepareDigestJob}`);
     console.log(` ENABLE_NOTIFICATION_JOB=${enableNotificationJob}`);
     console.log(` RUN_INGESTION_ON_BOOT=${runIngestionOnBoot}`);
+    console.log(` ENABLE_GLOBAL_CONTEXT_JOB=${enableGlobalContextJob}`);
 
     if (enablePrepareDigestJob) {
       startPrepareDeliveryRunsJob();

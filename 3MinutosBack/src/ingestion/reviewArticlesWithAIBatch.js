@@ -2,6 +2,7 @@ const { z } = require('zod');
 const { zodTextFormat } = require('openai/helpers/zod');
 const { openai, OPENAI_MODEL } = require('../config/openai');
 const { buildEmbeddingText } = require('../embeddings/buildEmbeddingsText');
+const GlobalContext = require('../models/GlobalContext');
 
 
 const BatchReviewSchema = z.object({
@@ -67,9 +68,19 @@ Otras Reglas:
 - aiConfidence va de 0 a 1.
 `;
 
-  const userPrompt = `
-Revisá estos artículos y devolvé el resultado final para cada uno.
+const latestContext = await GlobalContext.findOne().sort({ createdAt: -1 });
+const contextText = latestContext ? latestContext.summary : "Sin contexto global reciente.";
 
+const fechaActual = new Date().toLocaleDateString('es-AR', { 
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+});
+
+  const userPrompt = `
+  DATOS DE CONTEXTO PARA TU EVALUACIÓN:
+- Fecha de hoy: ${fechaActual}
+- Contexto Mundial de las últimas horas: "${contextText}"
+
+REGLA DE ANACRONISMO: Usá la fecha de hoy y el Contexto Mundial para detectar noticias desfasadas. Si una noticia habla en tiempo futuro de un evento que ya pasó, o anuncia un resultado que contradice el contexto actual, DEBÉS castigar su importanceScore drásticamente (puntuar entre 0 y 30).
 Artículos:
 ${JSON.stringify(payload, null, 2)}
 `;
