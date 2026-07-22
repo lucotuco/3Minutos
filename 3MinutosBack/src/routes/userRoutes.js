@@ -16,6 +16,7 @@ const { buildDigestForUser } = require('../utils/buildDigestForUser');
 const { saveShownArticlesForUser } = require('../utils/saveShownArticlesForUser');
 const { getLocalDateString } = require('../utils/dateHelpers');
 const { publicUser } = require('../utils/publicUser');
+const { getStaticConnectors } = require('../audio/getStaticConnectors');
 const {
   authRequired,
   requireSameUserParam,
@@ -785,21 +786,43 @@ router.post(
         }
         return articleAudioUrl;
       });
+const connectorsPromise = getStaticConnectors();
 
-      // 💥 LA MAGIA: Esperamos que todas las promesas terminen al mismo tiempo
-      // Mantenemos el orden exacto: Primero el saludo, después las noticias 1, 2 y 3.
-      const allAudioResults = await Promise.all([greetingPromise, ...articlesPromises]);
+      // 💥 LA MAGIA: Esperamos que todas las promesas terminen en paralelo
+      const [greetingUrl, articlesUrls, connectorsUrls] = await Promise.all([
+        greetingPromise,
+        Promise.all(articlesPromises),
+        connectorsPromise
+      ]);
 
-      // Limpiamos cualquier nulo que haya fallado
-      const cleanPlaylist = allAudioResults.filter(Boolean);
-      
-      console.log(`🏁 [CHECKPOINT 10] Audio generado en paralelo. Playlist lista con ${cleanPlaylist.length} tracks.`);
+      // 🧩 ENSAMBLAMOS LA PLAYLIST INTERCALADA (7 TRACKS TOTALES)
+      const playlist = [];
+
+      // 1. Saludo inicial
+      if (greetingUrl) playlist.push(greetingUrl);
+
+      // 2. Intercalamos: Conector 1 -> Artículo 1 -> Conector 2 -> Artículo 2 ...
+      for (let i = 0; i < articlesUrls.length; i++) {
+        const articleUrl = articlesUrls[i];
+        if (!articleUrl) continue;
+
+        // Metemos el audio estático ("Primera noticia.", "Segunda noticia.", etc.)
+        const connectorUrl = connectorsUrls[i];
+        if (connectorUrl) {
+          playlist.push(connectorUrl);
+        }
+
+        // Metemos la noticia limpia (reutilizable por otros usuarios)
+        playlist.push(articleUrl);
+      }
+
+      console.log(`🏁 [CHECKPOINT 10] Audio generado en paralelo. Playlist lista con ${playlist.length} tracks.`);
 
       return res.json({
         success: true,
-        playlist: cleanPlaylist,
+        playlist: playlist,
       });
-
+      
     } catch (error) {
       console.error('\n💥 CRASH DETECTADO EN EL ENDPOINT /PLAY:');
       console.error(error.stack); // Esto nos va a imprimir el error exacto con número de línea

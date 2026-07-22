@@ -19,7 +19,7 @@ async function generateDigestAudioFile({ script, outputPath }) {
       // Voz Neuronal premium Argentina Masculina
       voice: { languageCode: 'es-AR', name: 'es-US-Wavenet-B' },
       // Formato MP3 y la velocidad que tenías (speakingRate en lugar de speed)
-      audioConfig: { audioEncoding: 'MP3', speakingRate: 1.15 },
+      audioConfig: { audioEncoding: 'MP3', speakingRate: 1 },
     };
 
     // 2. Llamamos a la API de Google
@@ -30,9 +30,7 @@ async function generateDigestAudioFile({ script, outputPath }) {
 
     // 👇 CÁLCULO DE COSTO PARA GOOGLE CLOUD 👇
     const caracteres = script?.length || 0;
-    // La voz premium Neural2 cuesta $0.016 por cada 1000 caracteres
-    // (Tenés 1 millón de caracteres gratis al mes para voces Standard, 
-    // y para Neural2 los primeros 1 millón también suelen ser gratis).
+
     const costoPorMilCaracteres = 0.016; 
     const costoTotal = (caracteres / 1000) * costoPorMilCaracteres;
 
