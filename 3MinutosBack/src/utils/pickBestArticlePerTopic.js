@@ -141,9 +141,9 @@ async function findCandidatesForTopic(topic, limit, useCutoff = true) {
     ...(isMainCategory ? { category: topic } : { topic: new RegExp('^' + topic + '$', 'i') }),
   };
 
-  // Solo aplicamos el límite de 7 días si useCutoff es true
+  // Solo aplicamos el límite de 72 HS si useCutoff es true
   if (useCutoff) {
-    const cutoff = new Date(Date.now() - 168 * 60 * 60 * 1000);
+    const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000);
     baseQuery.publishedAt = { $gte: cutoff };
   }
 
@@ -228,12 +228,6 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
       let candidates = await findCandidatesForTopic(topic, perTopicLimit, true);
       // 👇 MODIFICACIÓN: Le agregamos `usedTitles` a todos los filter/find 👇
       bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
-
-      // INTENTO 2: Si no hay frescas, buscar históricas de ESE tema sin límite
-      if (!bestUnused) {
-        candidates = await findCandidatesForTopic(topic, perTopicLimit, false);
-        bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
-      }
 
       // INTENTO 3: Fallback a Categoría (ej: Rugby -> Deportes)
       if (!bestUnused) {

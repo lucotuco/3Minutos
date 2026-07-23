@@ -33,7 +33,7 @@ function getRankingScore(article = {}) {
   const freshnessScore = getFreshnessScore(article.publishedAt);
   const hoursOld = getHoursDiff(article.publishedAt);
 
-  // LA REGLA UNIVERSAL DE CADUCIDAD (Mantenemos esto para matar las previas viejas)
+  // LA REGLA UNIVERSAL DE CADUCIDAD PARA PREVIAS
   const title = String(article.title || '').toLowerCase();
   const isPreview = title.includes('en vivo') || 
                     title.includes('a qué hora') || 
@@ -44,12 +44,23 @@ function getRankingScore(article = {}) {
                     title.includes('formaciones');
 
   if (isPreview && hoursOld > 4) {
-    importanceScore = importanceScore * 0.2; // Destruimos el puntaje de notas vencidas
+    importanceScore = importanceScore * 0.2; 
   }
 
-  // Equilibrio ideal: 70% Valor periodístico (IA) + 30% Novedad (Reloj)
+  // 💥 NUEVO: PENALIZACIÓN MULTIPLICATIVA POR VEJEZ (GRAVEDAD)
+  // Evita que un puntaje alto de IA compense que la nota sea vieja
+  let ageMultiplier = 1.0;
+  if (hoursOld > 72) {
+    ageMultiplier = 0.1; // Más de 3 días: pasa a valer casi nada (ej: 63 pts -> 6 pts)
+  } else if (hoursOld > 48) {
+    ageMultiplier = 0.4; // Entre 2 y 3 días: pierde el 60% de su valor
+  } else if (hoursOld > 24) {
+    ageMultiplier = 0.8; // De ayer: pierde un 20% para priorizar lo de hoy
+  }
+
+  // Aplicamos el multiplicador al final de la fórmula
   const rankingScore = clamp(
-    importanceScore * 0.70 + freshnessScore * 0.30,
+    (importanceScore * 0.70 + freshnessScore * 0.30) * ageMultiplier,
     0,
     100
   );

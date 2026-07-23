@@ -1,5 +1,6 @@
 const UserPreference = require('../models/UserPreference');
 const UserDeliveryRun = require('../models/UserDeliveryRun');
+const DigestTestLog = require('../models/DigestTestLog');
 
 const { buildUserNewsDigest } = require('./buildUserNewsDigest');
 // 👇 IMPORTAMOS LA UTILIDAD DE HISTORIAL ABSOLUTO QUE NO SE ESTABA USANDO
@@ -57,6 +58,21 @@ async function buildDigestForUser(userId) {
         audioGeneratedAt: null,
       },
     };
+
+    DigestTestLog.create({
+      idUsuario: user._id,
+      motivo: 'refresh_test',
+      noticias: (digest.items || []).map((item) => ({
+        titulo: item.neutralTitle || item.title || '',
+        summaryLead: item.neutralLead || item.lead || '',
+        summary: item.neutralSummary || item.summary || '',
+        publishedAt: item.publishedAt || null,
+        categoria: item.category || '',
+        puntajeNoticia: Number(item.rankingScore ?? item.finalScore ?? item.score ?? 0),
+      })),
+    }).catch((logError) => {
+      console.error('⚠️ [TEST LOG] No se pudo guardar el log de testing:', logError.message);
+    });
 
     totalTimer.end({
       userId: String(user._id),

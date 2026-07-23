@@ -138,7 +138,10 @@ async function buildUserNewsDigest({
           url:           pick.article.url,
           section:       pick.article.section,
           region:        pick.article.region,
-          category:      pick.article.category,   // ← campo nuevo
+          category:      pick.article.category,  
+
+          publishedAt:   pick.article.publishedAt || null, 
+          
           tags:          pick.article.tags || [],
 
           cached:           Boolean(curationResult.cached),
