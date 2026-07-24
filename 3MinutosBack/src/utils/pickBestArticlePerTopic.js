@@ -305,14 +305,14 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
             bestUnused = bestMatch;
             usedFallback = false;
           } else {
-            fallbackCategory = bestMatch.topic || bestMatch.category || 'Entretenimiento/Cultura';
+            fallbackCategory = bestMatch.category || 'General';
             let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
             bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
             usedFallback = true;
             console.warn(`⚠️  Score semántico bajo para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
           }
         } else {
-          fallbackCategory = 'Entretenimiento/Cultura';
+          fallbackCategory = bestMatch.category || 'General';
           let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
           bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
           usedFallback = true;
