@@ -2,6 +2,14 @@ const Article = require('../models/Article');
 const { enrichArticleRanking } = require('./articleRanking');
 const { ALL_CATEGORIES } = require('../ingestion/classifyArticleTopic');
 const { searchArticlesBySimilarityAtlas } = require('../embeddings/searchArticlesBySimilarityAtlas');
+const { openai } = require('../config/openai');
+
+// 🕒 REGLA GLOBAL DE FRESCURA PARA TODA LA APP (48 HORAS)
+const MAX_ARTICLE_AGE_HOURS = 48;
+
+function getFreshnessCutoff() {
+  return new Date(Date.now() - MAX_ARTICLE_AGE_HOURS * 60 * 60 * 1000);
+}
 
 const OPINION_KEYWORDS = ['opinion', 'opinión', 'columna', 'columnista', 'editorial', 'analisis', 'análisis'];
 
@@ -54,7 +62,36 @@ function normalizeText(value) {
     .trim();
 }
 
+async function expandTopicForEmbedding(rawTopic) {
+  const topic = String(rawTopic || '').trim();
+  
+  // Si el tema ya tiene 3 palabras o más (ej: "crisis económica inflación"), lo usamos directo
+  if (topic.split(/\s+/).length >= 3) {
+    return topic;
+  }
 
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'Sos un asistente de búsqueda para una app de noticias en Argentina. El usuario te da 1 o 2 palabras. Tu única tarea es devolver un string de 5 a 7 palabras clave altamente descriptivas para buscar noticias de actualidad nacional en una base vectorizada. Si la palabra es un club deportivo local ("boca", "river", "racing", "rojo", "lobo", "pincha", "cuervo") o argot argentino, asumí SIEMPRE su significado local. Devolvé ÚNICAMENTE las palabras clave sin puntuación ni explicaciones.'
+        },
+        { role: 'user', content: topic }
+      ],
+      temperature: 0,
+      max_tokens: 25,
+    });
+
+    const expanded = response.choices?.[0]?.message?.content?.trim() || topic;
+    console.log(`🧠 [Query Expansion IA] "${topic}" -> expandido a "${expanded}"`);
+    return expanded;
+  } catch (error) {
+    console.warn(`⚠️ Falló expansión IA para "${topic}", usando original:`, error.message);
+    return `${topic} noticias actualidad Argentina`; // Fallback de seguridad
+  }
+}
 
 function includesOpinionKeyword(value) {
   const normalized = normalizeText(value);
@@ -76,24 +113,30 @@ function calculateTitleSimilarity(title1, title2) {
     if (words2.has(w)) intersection++;
   }
   
-  // LA MAGIA: Dividimos por el tamaño del título más corto.
-  // Si uno es corto y el otro largo, pero comparten "Lebron James Lakers", da altísimo.
   const shortestLength = Math.min(words1.size, words2.size);
   return intersection / shortestLength;
 }
 
-// 👇 FILTRO CON LOGS DETALLADOS PARA DEBUGGEAR 👇
 function isUsableDigestArticle(article, usedUrls, usedTitles = []) {
   if (!article?.url) return false;
   if (usedUrls.has(article.url)) return false;
   if (isOpinionArticle(article)) return false;
+
+  // 🛡️ BARRERA DE SEGURIDAD EN MEMORIA: Doble chequeo anti-noticias viejas
+  if (article.publishedAt) {
+    const pubDate = new Date(article.publishedAt).getTime();
+    const diffHours = (Date.now() - pubDate) / (1000 * 60 * 60);
+    if (diffHours > MAX_ARTICLE_AGE_HOURS) {
+      console.log(`      ⛔ [CADUCIDAD ${Math.round(diffHours)} HS] BLOQUEADO POR EDAD: "${article.neutralTitle || article.title}"\n`);
+      return false;
+    }
+  }
 
   const candidateTitle = article.neutralTitle || article.title || "";
   
   let maxSim = 0;
   let mostSimilarTitle = "";
 
-  // Buscamos cuál es el título viejo que más se le parece
   for (const seenTitle of usedTitles) {
     const similarity = calculateTitleSimilarity(candidateTitle, seenTitle);
     if (similarity > maxSim) {
@@ -102,14 +145,12 @@ function isUsableDigestArticle(article, usedUrls, usedTitles = []) {
     }
   }
 
-  // UMBRAL: Si más del 40% de las palabras del título más corto coinciden, lo bloqueamos.
   if (maxSim >= 0.40) {
     console.log(`      ⛔ [SIMILITUD ${Math.round(maxSim*100)}%] BLOQUEADO:`);
     console.log(`         ❌ Intentó entrar: "${candidateTitle}"`);
     console.log(`         📄 Ya habías leído: "${mostSimilarTitle}"\n`);
     return false;
   } else if (maxSim > 0.15) {
-    // Si se parece un poquito pero pasa, te lo muestro en verde para que veas que el filtro funcionó bien
     console.log(`      ✅ [SIMILITUD ${Math.round(maxSim*100)}%] PERMITIDO:`);
     console.log(`         🆕 Entró: "${candidateTitle}"`);
     console.log(`         🔍 Se evaluó contra: "${mostSimilarTitle}"\n`);
@@ -133,7 +174,6 @@ function isOpinionArticle(article = {}) {
   return false;
 }
 
-
 async function findCandidatesForTopic(topic, limit, useCutoff = true) {
   const isMainCategory = ALL_CATEGORIES.includes(topic);
 
@@ -141,10 +181,9 @@ async function findCandidatesForTopic(topic, limit, useCutoff = true) {
     ...(isMainCategory ? { category: topic } : { topic: new RegExp('^' + topic + '$', 'i') }),
   };
 
-  // Solo aplicamos el límite de 72 HS si useCutoff es true
+  // 🛡️ FILTRO MONGO 1 y 2: Aplicamos siempre el corte estricto de 48 horas en la base de datos
   if (useCutoff) {
-    const cutoff = new Date(Date.now() - 72 * 60 * 60 * 1000);
-    baseQuery.publishedAt = { $gte: cutoff };
+    baseQuery.publishedAt = { $gte: getFreshnessCutoff() };
   }
 
   const selectFields = [
@@ -185,14 +224,12 @@ async function findCandidatesForTopic(topic, limit, useCutoff = true) {
 async function pickBestArticlePerTopic(topics = [], options = {}) {
   if (!Array.isArray(topics) || topics.length === 0) return [];
 
-  // 👇 MODIFICACIÓN: Recibimos los títulos ya leídos 👇
   const { perTopicLimit = 10, alreadyShownUrls = [], alreadyShownTitles = [] } = options;
 
   const usedUrls = new Set(alreadyShownUrls);
-  const usedTitles = [...alreadyShownTitles]; // Copiamos al array local
+  const usedTitles = [...alreadyShownTitles];
   const results  = [];
 
-  // Pre-armar la lista de tópicos oficiales para que la validación sea rápida
   const rawOfficialTopics = [
     ...ALL_CATEGORIES,
     ...Object.keys(TOPIC_TO_CATEGORY),
@@ -210,7 +247,6 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
 
     const normTopic = normalizeText(trimmedTopic);
     
-    // Asumimos el tema tal cual viene, pero si está en nuestro mapa, usamos el oficial
     let topic = trimmedTopic;
     let isOfficial = false;
 
@@ -224,12 +260,15 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     let fallbackCategory = null;
 
     if (isOfficial) {
-      // INTENTO 1: Buscar notas frescas
+      // -------------------------------------------------------------
+      // CONSULTA 1: TEMA OFICIAL (Con filtro Mongo 48hs)
+      // -------------------------------------------------------------
       let candidates = await findCandidatesForTopic(topic, perTopicLimit, true);
-      // 👇 MODIFICACIÓN: Le agregamos `usedTitles` a todos los filter/find 👇
       bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
 
-      // INTENTO 3: Fallback a Categoría (ej: Rugby -> Deportes)
+      // -------------------------------------------------------------
+      // CONSULTA 2: FALLBACK A CATEGORÍA (Con filtro Mongo 48hs)
+      // -------------------------------------------------------------
       if (!bestUnused) {
         const category = TOPIC_TO_CATEGORY[topic];
         if (category && category !== topic) {
@@ -243,43 +282,69 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
         }
       }
     } else {
-      // ============================================
-      // CAMINO B: TEMA LIBRE (Búsqueda Vectorial Atlas)
-      // ============================================
+      // -------------------------------------------------------------
+      // CONSULTA 3: TEMA LIBRE O VECTORES (Con filtro Mongo 48hs inyectado)
+      // -------------------------------------------------------------
       try {
-        const semanticCandidates = await searchArticlesBySimilarityAtlas(topic, { 
-          limit: perTopicLimit * 2 
+        // 💥 PASO 1: Expandimos "boca" a "Boca Juniors fútbol argentino Riquelme" usando IA
+        const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
+
+        // 💥 PASO 2: Buscamos con ese vector perfecto y el filtro de 48 hs en Mongo
+        const semanticCandidates = await searchArticlesBySimilarityAtlas(queryForEmbedding, { 
+          limit: perTopicLimit * 2,
+          minDate: getFreshnessCutoff() 
         });
 
-        // 👇 MODIFICACIÓN: Agregamos usedTitles 👇
         const usableSemantic = semanticCandidates.filter(a => isUsableDigestArticle(a, usedUrls, usedTitles));
 
         if (usableSemantic.length > 0) {
           const bestMatch = usableSemantic[0];
-          
-          console.log(`🔍 [Tema Libre] "${topic}" -> Match: "${bestMatch.title}" | Score: ${bestMatch.score?.toFixed(3)}`);
+          console.log(`🔍 [Tema Libre] "${trimmedTopic}" -> Match: "${bestMatch.title}" | Score: ${bestMatch.score?.toFixed(3)}`);
           
           if (bestMatch.score >= 0.60) {
             bestUnused = bestMatch;
             usedFallback = false;
           } else {
             fallbackCategory = bestMatch.topic || bestMatch.category || 'Entretenimiento/Cultura';
-            
-            let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit);
+            let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
             bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
             usedFallback = true;
-            
-            console.warn(`⚠️  Score semántico bajo. Fallback a "${fallbackCategory}".`);
+            console.warn(`⚠️  Score semántico bajo para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
           }
         } else {
           fallbackCategory = 'Entretenimiento/Cultura';
-          let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit);
+          let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
           bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
           usedFallback = true;
         }
       } catch (error) {
-        console.error(`❌ Error en búsqueda semántica para "${topic}":`, error);
+        console.error(`❌ Error en búsqueda semántica para "${trimmedTopic}":`, error);
         usedFallback = true;
+      }
+    }
+
+    // -------------------------------------------------------------
+    // CONSULTA 4: RESCATE DE EMERGENCIA EN MONGODB (Para que no devuelva null)
+    // -------------------------------------------------------------
+    if (!bestUnused) {
+      console.log(`🚨 [RESCATE] No hubo resultados para "${topic}". Buscando noticias frescas generales...`);
+      try {
+        const emergencyCandidates = await Article.find({
+          publishedAt: { $gte: getFreshnessCutoff() },
+          topicStatus: 'done'
+        })
+          .sort({ importanceScore: -1, publishedAt: -1 })
+          .limit(perTopicLimit * 3)
+          .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl')
+          .lean();
+
+        bestUnused = emergencyCandidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
+        if (bestUnused) {
+          usedFallback = true;
+          fallbackCategory = bestUnused.category || 'General';
+        }
+      } catch (emergencyErr) {
+        console.error(`❌ Error en rescate de emergencia para "${topic}":`, emergencyErr);
       }
     }
 
@@ -294,7 +359,6 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     }
 
     usedUrls.add(bestUnused.url);
-    // 👇 MODIFICACIÓN VITAL: Bloqueamos el título nuevo para la próxima vuelta del bucle
     usedTitles.push(bestUnused.neutralTitle || bestUnused.title || "");
     
     results.push({ 

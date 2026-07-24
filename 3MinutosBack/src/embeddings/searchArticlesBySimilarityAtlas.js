@@ -32,6 +32,7 @@ async function searchArticlesBySimilarityAtlas(query, options = {}) {
     vectorLimit = 20,
     section,
     region,
+    minDate, // 💥 NUEVO: Recibimos la fecha límite de frescura
   } = options;
 
   const queryVector = await generateQueryEmbedding(query);
@@ -52,6 +53,9 @@ async function searchArticlesBySimilarityAtlas(query, options = {}) {
         ...(Object.keys(filter).length ? { filter } : {}),
       },
     },
+    // 🛡️ BLINDAJE DE FRESCURA EN ATLAS: Eliminamos vectores viejos (como las notas de 2023)
+    // Se ejecuta en la base de datos justo después de encontrar los vectores cercanos
+    ...(minDate ? [{ $match: { publishedAt: { $gte: minDate } } }] : []),
     {
       $project: {
         _id: 1,
