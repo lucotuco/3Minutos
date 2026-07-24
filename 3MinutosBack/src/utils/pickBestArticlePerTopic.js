@@ -312,10 +312,11 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
             console.warn(`⚠️  Score semántico bajo para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
           }
         } else {
-          fallbackCategory = bestMatch.category || 'General';
+          fallbackCategory = 'General';
           let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
           bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
           usedFallback = true;
+          console.warn(`⚠️  Cero resultados vectoriales para "${trimmedTopic}". Fallback a "General".`);
         }
       } catch (error) {
         console.error(`❌ Error en búsqueda semántica para "${trimmedTopic}":`, error);
