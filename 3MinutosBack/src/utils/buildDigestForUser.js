@@ -63,6 +63,7 @@ async function buildDigestForUser(userId) {
       idUsuario: user._id,
       motivo: 'refresh_test',
       noticias: (digest.items || []).map((item) => ({
+        topicoUsuario: item.topic || '',
         titulo: item.neutralTitle || item.title || '',
         summaryLead: item.neutralLead || item.lead || '',
         summary: item.neutralSummary || item.summary || '',

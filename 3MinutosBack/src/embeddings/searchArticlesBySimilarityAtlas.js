@@ -113,8 +113,28 @@ function getFreshnessScore(publishedAt) {
 
 function computeFinalScore(article = {}) {
   const vectorScore = Number(article.score || 0);
-  const normalizedImportance = Number(article.importanceScore || 0) / 100;
+  let normalizedImportance = Number(article.importanceScore || 0) / 100;
   const freshnessScore = getFreshnessScore(article.publishedAt);
+
+  // 🛡️ BLINDAJE ANTI-AGENDAS EN BÚSQUEDA VECTORIAL
+  const title = String(article.title || '').toLowerCase();
+  const isPreviewOrAgenda = title.includes('en vivo') || 
+                            title.includes('a qué hora') || 
+                            title.includes('a que hora') || 
+                            title.includes('dónde ver') || 
+                            title.includes('donde ver') || 
+                            title.includes('minuto a minuto') || 
+                            title.includes('formaciones') ||
+                            title.includes('agenda de partidos') ||
+                            title.includes('partidos de hoy') ||
+                            title.includes('qué canal') ||
+                            title.includes('tabla de posiciones') ||
+                            title.includes('fixture');
+
+  if (isPreviewOrAgenda) {
+    normalizedImportance = normalizedImportance * 0.1
+    return (vectorScore * 0.4 + normalizedImportance * 0.05 + freshnessScore * 0.05);
+  }
 
   return (
     vectorScore * 0.9 +

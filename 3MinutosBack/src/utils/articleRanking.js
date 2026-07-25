@@ -34,16 +34,23 @@ function getRankingScore(article = {}) {
   const hoursOld = getHoursDiff(article.publishedAt);
 
   // LA REGLA UNIVERSAL DE CADUCIDAD PARA PREVIAS
-  const title = String(article.title || '').toLowerCase();
-  const isPreview = title.includes('en vivo') || 
-                    title.includes('a qué hora') || 
-                    title.includes('a que hora') || 
-                    title.includes('dónde ver') || 
-                    title.includes('donde ver') || 
-                    title.includes('minuto a minuto') || 
-                    title.includes('formaciones');
+ const title = String(article.title || '').toLowerCase();
+  const isPreviewOrAgenda = title.includes('en vivo') || 
+                            title.includes('a qué hora') || 
+                            title.includes('a que hora') || 
+                            title.includes('dónde ver') || 
+                            title.includes('donde ver') || 
+                            title.includes('minuto a minuto') || 
+                            title.includes('formaciones') ||
+                            title.includes('agenda de partidos') ||
+                            title.includes('partidos de hoy') ||    
+                            title.includes('qué canal') ||          
+                            title.includes('que canal') ||          
+                            title.includes('tabla de posiciones') ||
+                            title.includes('fixture');              
 
-  if (isPreview && hoursOld > 4) {
+  // Eliminamos la condición "&& hoursOld > 4": si es agenda o previa, pierde el 80% del puntaje SIEMPRE.
+  if (isPreviewOrAgenda) {
     importanceScore = importanceScore * 0.2; 
   }
 

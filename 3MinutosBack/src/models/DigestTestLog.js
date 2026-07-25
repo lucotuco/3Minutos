@@ -14,6 +14,7 @@ const DigestTestLogSchema = new mongoose.Schema(
     },
     noticias: [
       {
+        topicoUsuario: { type: String, default: '' }, // 💥 NUEVO: El tema elegido que disparó esta noticia
         titulo: { type: String, default: '' },
         summaryLead: { type: String, default: '' },
         summary: { type: String, default: '' },
