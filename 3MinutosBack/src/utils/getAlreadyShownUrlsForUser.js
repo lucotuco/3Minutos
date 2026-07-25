@@ -1,5 +1,6 @@
 const UserShownArticle = require('../models/UserShownArticle');
-const UserDeliveryRun = require('../models/UserDeliveryRun'); // 👈 Importamos los envíos automáticos
+const UserDeliveryRun = require('../models/UserDeliveryRun'); 
+const Article = require('../models/Article');
 
 async function getAlreadyShownUrlsForUser(userId) {
   const items = await UserShownArticle.find({ userId }).select('articleUrl -_id').lean();
