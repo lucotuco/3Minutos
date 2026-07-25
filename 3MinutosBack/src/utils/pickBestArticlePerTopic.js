@@ -3,8 +3,8 @@ const { enrichArticleRanking } = require('./articleRanking');
 const { ALL_CATEGORIES } = require('../ingestion/classifyArticleTopic');
 const { searchArticlesBySimilarityAtlas } = require('../embeddings/searchArticlesBySimilarityAtlas');
 const { openai } = require('../config/openai');
+const { cosineSimilarity } = require('../embeddings/searchArticlesBySimilarity');
 
-// 🕒 REGLA GLOBAL DE FRESCURA PARA TODA LA APP (48 HORAS)
 const MAX_ARTICLE_AGE_HOURS = 48;
 
 function getFreshnessCutoff() {
@@ -65,7 +65,6 @@ function normalizeText(value) {
 async function expandTopicForEmbedding(rawTopic) {
   const topic = String(rawTopic || '').trim();
   
-  // Si el tema ya tiene 3 palabras o más (ej: "crisis económica inflación"), lo usamos directo
   if (topic.split(/\s+/).length >= 3) {
     return topic;
   }
@@ -89,7 +88,7 @@ async function expandTopicForEmbedding(rawTopic) {
     return expanded;
   } catch (error) {
     console.warn(`⚠️ Falló expansión IA para "${topic}", usando original:`, error.message);
-    return `${topic} noticias actualidad Argentina`; // Fallback de seguridad
+    return `${topic} noticias actualidad Argentina`;
   }
 }
 
@@ -98,31 +97,11 @@ function includesOpinionKeyword(value) {
   return OPINION_KEYWORDS.some((kw) => normalized.includes(normalizeText(kw)));
 }
 
-function calculateTitleSimilarity(title1, title2) {
-  if (!title1 || !title2) return 0;
-  
-  const cleanText = (t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, " ");
-  
-  const words1 = new Set(cleanText(title1).split(/\s+/).filter(w => w.length > 3));
-  const words2 = new Set(cleanText(title2).split(/\s+/).filter(w => w.length > 3));
-  
-  if (words1.size === 0 || words2.size === 0) return 0;
-  
-  let intersection = 0;
-  for (const w of words1) {
-    if (words2.has(w)) intersection++;
-  }
-  
-  const shortestLength = Math.min(words1.size, words2.size);
-  return intersection / shortestLength;
-}
-
-function isUsableDigestArticle(article, usedUrls, usedTitles = []) {
+function isUsableDigestArticle(article, usedUrls, seenEmbeddings = []) {
   if (!article?.url) return false;
   if (usedUrls.has(article.url)) return false;
   if (isOpinionArticle(article)) return false;
 
-  // 🛡️ BARRERA DE SEGURIDAD EN MEMORIA: Doble chequeo anti-noticias viejas
   if (article.publishedAt) {
     const pubDate = new Date(article.publishedAt).getTime();
     const diffHours = (Date.now() - pubDate) / (1000 * 60 * 60);
@@ -132,28 +111,33 @@ function isUsableDigestArticle(article, usedUrls, usedTitles = []) {
     }
   }
 
+  if (!Array.isArray(article.embedding) || article.embedding.length === 0) {
+    return true; 
+  }
+
   const candidateTitle = article.neutralTitle || article.title || "";
-  
   let maxSim = 0;
   let mostSimilarTitle = "";
 
-  for (const seenTitle of usedTitles) {
-    const similarity = calculateTitleSimilarity(candidateTitle, seenTitle);
+  for (const seen of seenEmbeddings) {
+    if (!Array.isArray(seen.vector) || seen.vector.length === 0) continue;
+    
+    const similarity = cosineSimilarity(article.embedding, seen.vector);
     if (similarity > maxSim) {
       maxSim = similarity;
-      mostSimilarTitle = seenTitle;
+      mostSimilarTitle = seen.title;
     }
   }
 
-  if (maxSim >= 0.40) {
-    console.log(`      ⛔ [SIMILITUD ${Math.round(maxSim*100)}%] BLOQUEADO:`);
+  if (maxSim >= 0.85) {
+    console.log(`      ⛔ [DUPLICADO SEMÁNTICO ${Math.round(maxSim*100)}%] BLOQUEADO:`);
     console.log(`         ❌ Intentó entrar: "${candidateTitle}"`);
-    console.log(`         📄 Ya habías leído: "${mostSimilarTitle}"\n`);
+    console.log(`         📄 Ya habías leído el evento: "${mostSimilarTitle}"\n`);
     return false;
-  } else if (maxSim > 0.15) {
-    console.log(`      ✅ [SIMILITUD ${Math.round(maxSim*100)}%] PERMITIDO:`);
+  } else if (maxSim > 0.50) {
+    console.log(`      ✅ [TEMA RELACIONADO PERO EVENTO DISTINTO ${Math.round(maxSim*100)}%] PERMITIDO:`);
     console.log(`         🆕 Entró: "${candidateTitle}"`);
-    console.log(`         🔍 Se evaluó contra: "${mostSimilarTitle}"\n`);
+    console.log(`         🔍 Más cercano en historial: "${mostSimilarTitle}"\n`);
   }
 
   return true;

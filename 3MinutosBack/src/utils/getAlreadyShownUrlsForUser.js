@@ -6,41 +6,30 @@ async function getAlreadyShownUrlsForUser(userId) {
   return items.map((item) => item.articleUrl).filter(Boolean);
 }
 
+// En getAlreadyShownUrlsForUser.js
 async function getAlreadyShownHistoryForUser(userId) {
-  // 1. Obtenemos lo que el usuario activamente scrolleó/vio en la app
+  // 1. Lo que vio en la app (traemos el artículo completo o su embedding)
   const shownItems = await UserShownArticle.find({ userId })
-    .select('articleUrl title -_id')
+    .sort({ shownAt: -1 })
+    .limit(30) // Solo necesitamos comparar contra las 30 más recientes
+    .select('articleUrl articleId -_id')
     .lean();
 
-  const urls = shownItems.map((item) => item.articleUrl).filter(Boolean);
-  const titles = shownItems.map((item) => item.title).filter(Boolean);
+  const urls = shownItems.map((i) => i.articleUrl).filter(Boolean);
+  const articleIds = shownItems.map((i) => i.articleId).filter(Boolean);
 
-  // 2. Obtenemos TODOS los resúmenes que el backend le generó históricamente (Cronjob y Refresh)
-  const deliveryRuns = await UserDeliveryRun.find({ 
-    userId, 
-    digest: { $ne: null } 
-  }).select('digest -_id').lean();
+  // 2. Buscamos los embeddings reales de esas notas en la BD
+  const pastArticles = await Article.find({ _id: { $in: articleIds } })
+    .select('title embedding -_id')
+    .lean();
 
-  // 3. Extraemos las URLs y títulos de todos esos resúmenes pasados
-  for (const run of deliveryRuns) {
-    let items = [];
-    if (Array.isArray(run?.digest?.digest?.items)) {
-      items = run.digest.digest.items;
-    } else if (Array.isArray(run?.digest?.items)) {
-      items = run.digest.items;
-    }
+  const seenEmbeddings = pastArticles
+    .filter((a) => Array.isArray(a.embedding) && a.embedding.length > 0)
+    .map((a) => ({ title: a.title, vector: a.embedding }));
 
-    for (const item of items) {
-      if (item.url) urls.push(item.url);
-      if (item.neutralTitle) titles.push(item.neutralTitle);
-      else if (item.title) titles.push(item.title);
-    }
-  }
-
-  // 4. Devolvemos las listas limpias (eliminando duplicados cruzados entre el front y el back)
   return {
     urls: [...new Set(urls)],
-    titles: [...new Set(titles)],
+    seenEmbeddings,
   };
 }
 
