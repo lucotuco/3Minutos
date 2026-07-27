@@ -346,14 +346,17 @@ async function generateNeutralCuration(articleId, options = {}) {
     const parsed = response.output_parsed;
 
     if (response.usage) {
-      const pTokens = response.usage.prompt_tokens || 0;
-      const cTokens = response.usage.completion_tokens || 0;
+      const pTokens = response.usage.input_tokens || response.usage.prompt_tokens || 0;
+      const cTokens = response.usage.output_tokens || response.usage.completion_tokens || 0;
       
-      // Verificamos si OpenAI usó el caché (para cobrarte la mitad)
-      const cachedTokens = response.usage.prompt_tokens_details?.cached_tokens || 0;
-      const uncachedTokens = pTokens - cachedTokens;
+      const cachedTokens = 
+        response.usage.input_tokens_details?.cached_tokens || 
+        response.usage.input_token_details?.cached_tokens || 
+        response.usage.prompt_tokens_details?.cached_tokens || 
+        0;
+        
+      const uncachedTokens = Math.max(0, pTokens - cachedTokens);
 
-      // Precios oficiales actuales para gpt-4o-mini (USD por cada 1 millón de tokens)
       const precioInput = 0.150;
       const precioCached = 0.075;
       const precioOutput = 0.600;
