@@ -27,12 +27,12 @@ async function generateQueryEmbedding(query = '') {
 
 async function searchArticlesBySimilarityAtlas(query, options = {}) {
   const {
-    limit = 5,
-    numCandidates = 100,
-    vectorLimit = 20,
+    limit = 20,
+    numCandidates = 200,
+    vectorLimit = 50,
     section,
     region,
-    minDate, // 💥 NUEVO: Recibimos la fecha límite de frescura
+    minDate,
   } = options;
 
   const queryVector = await generateQueryEmbedding(query);
@@ -41,6 +41,7 @@ async function searchArticlesBySimilarityAtlas(query, options = {}) {
 
   if (section) filter.section = section;
   if (region) filter.region = region;
+  if (minDate) filter.publishedAt = { $gte: new Date(minDate) };
 
   const pipeline = [
     {
@@ -53,9 +54,6 @@ async function searchArticlesBySimilarityAtlas(query, options = {}) {
         ...(Object.keys(filter).length ? { filter } : {}),
       },
     },
-    // 🛡️ BLINDAJE DE FRESCURA EN ATLAS: Eliminamos vectores viejos (como las notas de 2023)
-    // Se ejecuta en la base de datos justo después de encontrar los vectores cercanos
-    ...(minDate ? [{ $match: { publishedAt: { $gte: minDate } } }] : []),
     {
       $project: {
         _id: 1,
