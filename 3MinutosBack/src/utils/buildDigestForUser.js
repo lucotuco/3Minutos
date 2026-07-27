@@ -26,16 +26,17 @@ async function buildDigestForUser(userId) {
     // 2. Extraemos URLs y Títulos únicos
     const uniqueAlreadyShownUrls = [...new Set(history.urls)];
     const uniqueAlreadyShownTitles = [...new Set(history.titles)];
+    const seenEmbeddings = history.seenEmbeddings || [];
 
-    console.log(`🛡️ [FILTRO ANTI-DUPLICADOS] Excluyendo ${uniqueAlreadyShownUrls.length} URLs y evaluando similitud contra ${uniqueAlreadyShownTitles.length} títulos.`);
+    console.log(`🛡️ [FILTRO ANTI-DUPLICADOS] Excluyendo ${uniqueAlreadyShownUrls.length} URLs y evaluando similitud vectorial contra ${seenEmbeddings.length} vectores.`);
 
-    // 3. Generamos el Digest (Asegurate de que se llame buildUserNewsDigest)
     const digest = await timeAsync(
       'buildUserNewsDigest',
       () => buildUserNewsDigest({
         topics: user.topics || [],
         alreadyShownUrls: uniqueAlreadyShownUrls,
-        alreadyShownTitles: uniqueAlreadyShownTitles, // <-- PASAMOS LOS TÍTULOS
+        alreadyShownTitles: uniqueAlreadyShownTitles,
+        seenEmbeddings: seenEmbeddings, 
       }),
       {
         userId: String(user._id),

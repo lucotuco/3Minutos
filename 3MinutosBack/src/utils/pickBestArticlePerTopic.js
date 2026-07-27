@@ -210,7 +210,7 @@ async function findCandidatesForTopic(topic, limit, useCutoff = true) {
 async function pickBestArticlePerTopic(topics = [], options = {}) {
   if (!Array.isArray(topics) || topics.length === 0) return [];
 
-  const { perTopicLimit = 10, alreadyShownUrls = [], alreadyShownTitles = [] } = options;
+  const { perTopicLimit = 10, alreadyShownUrls = [], alreadyShownTitles = [], seenEmbeddings = [] } = options;
 
   const usedUrls = new Set(alreadyShownUrls);
   const usedTitles = [...alreadyShownTitles];
@@ -250,7 +250,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
       // CONSULTA 1: TEMA OFICIAL (Con filtro Mongo 48hs)
       // -------------------------------------------------------------
       let candidates = await findCandidatesForTopic(topic, perTopicLimit, true);
-      bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
+      bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
 
       // -------------------------------------------------------------
       // CONSULTA 2: FALLBACK A CATEGORÍA (Con filtro Mongo 48hs)
@@ -259,7 +259,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
         const category = TOPIC_TO_CATEGORY[topic];
         if (category && category !== topic) {
           candidates = await findCandidatesForTopic(category, perTopicLimit, true);
-          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
+          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
           
           if (bestUnused) {
             usedFallback = true;
@@ -281,7 +281,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           minDate: getFreshnessCutoff() 
         });
 
-        const usableSemantic = semanticCandidates.filter(a => isUsableDigestArticle(a, usedUrls, usedTitles));
+        const usableSemantic = semanticCandidates.filter(a => isUsableDigestArticle(a, usedUrls, seenEmbeddings));
 
         if (usableSemantic.length > 0) {
           const bestMatch = usableSemantic[0];
@@ -293,14 +293,14 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           } else {
             fallbackCategory = bestMatch.category || 'General';
             let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
-            bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
+            bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
             usedFallback = true;
             console.warn(`⚠️  Score semántico bajo para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
           }
         } else {
           fallbackCategory = 'General';
           let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
-          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
+          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
           usedFallback = true;
           console.warn(`⚠️  Cero resultados vectoriales para "${trimmedTopic}". Fallback a "General".`);
         }
@@ -325,7 +325,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl')
           .lean();
 
-        bestUnused = emergencyCandidates.find((article) => isUsableDigestArticle(article, usedUrls, usedTitles));
+        bestUnused = emergencyCandidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
         if (bestUnused) {
           usedFallback = true;
           fallbackCategory = bestUnused.category || 'General';
