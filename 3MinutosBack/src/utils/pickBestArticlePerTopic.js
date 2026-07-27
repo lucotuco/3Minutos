@@ -247,18 +247,20 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
             bestUnused = bestMatch;
             usedFallback = false;
           } else {
-            fallbackCategory = bestMatch.category || 'General';
+            // 💥 CORREGIDO: Si el score es bajo, caemos a la categoría real del artículo (ej. Deportes), NUNCA a 'General'
+            fallbackCategory = bestMatch.category || 'Sociedad';
             let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
             bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
             usedFallback = true;
-            console.warn(`⚠️  Score semántico bajo para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
+            console.warn(`⚠️ Score semántico bajo para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
           }
         } else {
-          fallbackCategory = 'General';
+          // 💥 CORREGIDO: Si no hay vectores, buscamos en Sociedad o Internacional en lugar de una categoría inexistente
+          fallbackCategory = 'Sociedad';
           let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
           bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
           usedFallback = true;
-          console.warn(`⚠️  Cero resultados vectoriales para "${trimmedTopic}". Fallback a "General".`);
+          console.warn(`⚠️ Cero resultados vectoriales para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
         }
       } catch (error) {
         console.error(`❌ Error en búsqueda semántica para "${trimmedTopic}":`, error);
@@ -266,24 +268,48 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
       }
     }
 
+    // -------------------------------------------------------------
+    // CONSULTA 4: RESCATE DE EMERGENCIA EN MONGODB
+    // -------------------------------------------------------------
     if (!bestUnused) {
-      console.log(`🚨 [RESCATE] No hubo resultados para "${topic}". Buscando noticias frescas generales...`);
+      console.log(`🚨 [RESCATE] No hubo resultados para "${topic}". Buscando reemplazo de emergencia...`);
       try {
-        const emergencyCandidates = await Article.find({
+        // 💥 CORREGIDO: Si el tema era deportivo o económico, intentamos rescatar dentro de su misma área general primero
+        let emergencyFilter = {
           publishedAt: { $gte: getFreshnessCutoff() },
           topicStatus: 'done',
-          // 💥 CORREGIDO 2: Piso mínimo de calidad para evitar noticias de farándula o irrelevantes con Score 0
-          importanceScore: { $gte: 35 } 
-        })
+          importanceScore: { $gte: 40 } // Piso de calidad elevado
+        };
+
+        // Si el usuario pedía fútbol, tenis o clubes, restringimos el rescate a Deportes para que no entren crímenes
+        const topicLower = normalizeText(topic);
+        if (topicLower.includes('river') || topicLower.includes('boca') || topicLower.includes('champions') || topicLower.includes('seleccion') || topicLower.includes('futbol') || topicLower.includes('tenis')) {
+          emergencyFilter.category = 'Deportes';
+        }
+
+        let emergencyCandidates = await Article.find(emergencyFilter)
           .sort({ importanceScore: -1, publishedAt: -1 })
           .limit(perTopicLimit * 3)
           .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl embedding')
           .lean();
 
-        bestUnused = emergencyCandidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
+        // Si no encontró de esa categoría específica, abrimos la búsqueda a todo el diario
+        if (emergencyCandidates.length === 0 && emergencyFilter.category) {
+          delete emergencyFilter.category;
+          emergencyCandidates = await Article.find(emergencyFilter)
+            .sort({ importanceScore: -1, publishedAt: -1 })
+            .limit(perTopicLimit * 3)
+            .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl embedding')
+            .lean();
+        }
+
+        // 💥 CORREGIDO: Aplicamos enrichArticleRanking para que no devuelva puntajeNoticia: 0 en los logs
+        const rankedEmergency = emergencyCandidates.map(enrichArticleRanking);
+
+        bestUnused = rankedEmergency.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
         if (bestUnused) {
           usedFallback = true;
-          fallbackCategory = bestUnused.category || 'General';
+          fallbackCategory = bestUnused.category || 'Sociedad';
         }
       } catch (emergencyErr) {
         console.error(`❌ Error en rescate de emergencia para "${topic}":`, emergencyErr);
