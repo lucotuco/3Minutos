@@ -69,13 +69,15 @@ async function expandTopicForEmbedding(rawTopic) {
     return topic;
   }
 
+  const currentYear = new Date().getFullYear();
+
   try {
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
-          content: 'Sos un asistente de búsqueda para una app de noticias en Argentina. El usuario te da 1 o 2 palabras. Tu única tarea es devolver un string de 5 a 7 palabras clave altamente descriptivas para buscar noticias de actualidad nacional en una base vectorizada. Si la palabra es un club deportivo local ("boca", "river", "racing", "rojo", "lobo", "pincha", "cuervo") o argot argentino, asumí SIEMPRE su significado local. Devolvé ÚNICAMENTE las palabras clave sin puntuación ni explicaciones.'
+          content: 'Sos un asistente de búsqueda para una app de noticias en Argentina en el año ${currentYear}. El usuario te da 1 o 2 palabras. Tu única tarea es devolver un string de 5 a 7 palabras clave altamente descriptivas para buscar noticias en una base vectorizada de ${currentYear}. Si la palabra es un club deportivo o torneo ("copa sudamericana", "boca", "river"), asumí SIEMPRE su significado de fútbol local argentino. Devolvé ÚNICAMENTE las palabras sin puntuación.'
         },
         { role: 'user', content: topic }
       ],
