@@ -14,44 +14,13 @@ function getFreshnessCutoff() {
 const OPINION_KEYWORDS = ['opinion', 'opinión', 'columna', 'columnista', 'editorial', 'analisis', 'análisis'];
 
 const TOPIC_TO_CATEGORY = {
-  'Gobierno Nacional': 'Política',
-  'Justicia': 'Política',
-  'Elecciones': 'Política',
-  'Educación': 'Política',
-  'Seguridad': 'Política',
-  'Dólar y Mercados': 'Economía',
-  'Inflación y Consumo': 'Economía',
-  'Empresas y Negocios': 'Economía',
-  'Inversiones': 'Economía',
-  'Emprendedores': 'Economía',
-  'EEUU': 'Internacional',
-  'Medio Oriente': 'Internacional',
-  'Europa': 'Internacional',
-  'América Latina': 'Internacional',
-  'Conflictos': 'Internacional',
-  'Geopolítica': 'Internacional',
-  'Fútbol': 'Deportes',
-  'Mundial 2026': 'Deportes',
-  'Básquet': 'Deportes',
-  'Tenis': 'Deportes',
-  'Rugby': 'Deportes',
-  'Salud': 'Sociedad',
-  'Bienestar': 'Sociedad',
-  'Clima y Ambiente': 'Sociedad',
-  'Historias Humanas': 'Sociedad',
-  'Tendencias Y Vida': 'Sociedad',
-  'Inteligencia Artificial': 'Tecnología',
-  'Ciencia y Espacio': 'Tecnología',
-  'Apps y Redes': 'Tecnología',
-  'Innovación': 'Tecnología',
-  'Videojuegos': 'Tecnología',
-  'Cine y Series': 'Entretenimiento/Cultura',
-  'Música': 'Entretenimiento/Cultura',
-  'Turismo y Viajes': 'Entretenimiento/Cultura',
-  'Streaming': 'Entretenimiento/Cultura',
-  'Autos': 'Entretenimiento/Cultura',
-  'Viral y Trending': 'Entretenimiento/Cultura',
-  'Teatro y Literatura': 'Entretenimiento/Cultura',
+  'Gobierno Nacional': 'Política', 'Justicia': 'Política', 'Elecciones': 'Política', 'Educación': 'Política', 'Seguridad': 'Política',
+  'Dólar y Mercados': 'Economía', 'Inflación y Consumo': 'Economía', 'Empresas y Negocios': 'Economía', 'Inversiones': 'Economía', 'Emprendedores': 'Economía',
+  'EEUU': 'Internacional', 'Medio Oriente': 'Internacional', 'Europa': 'Internacional', 'América Latina': 'Internacional', 'Conflictos': 'Internacional', 'Geopolítica': 'Internacional',
+  'Fútbol': 'Deportes', 'Mundial 2026': 'Deportes', 'Básquet': 'Deportes', 'Tenis': 'Deportes', 'Rugby': 'Deportes',
+  'Salud': 'Sociedad', 'Bienestar': 'Sociedad', 'Clima y Ambiente': 'Sociedad', 'Historias Humanas': 'Sociedad', 'Tendencias Y Vida': 'Sociedad',
+  'Inteligencia Artificial': 'Tecnología', 'Ciencia y Espacio': 'Tecnología', 'Apps y Redes': 'Tecnología', 'Innovación': 'Tecnología', 'Videojuegos': 'Tecnología',
+  'Cine y Series': 'Entretenimiento/Cultura', 'Música': 'Entretenimiento/Cultura', 'Turismo y Viajes': 'Entretenimiento/Cultura', 'Streaming': 'Entretenimiento/Cultura', 'Autos': 'Entretenimiento/Cultura', 'Viral y Trending': 'Entretenimiento/Cultura', 'Teatro y Literatura': 'Entretenimiento/Cultura',
 };
 
 function normalizeText(value) {
@@ -77,7 +46,8 @@ async function expandTopicForEmbedding(rawTopic) {
       messages: [
         {
           role: 'system',
-          content: 'Sos un asistente de búsqueda para una app de noticias en Argentina en el año ${currentYear}. El usuario te da 1 o 2 palabras. Tu única tarea es devolver un string de 5 a 7 palabras clave altamente descriptivas para buscar noticias en una base vectorizada de ${currentYear}. Si la palabra es un club deportivo o torneo ("copa sudamericana", "boca", "river"), asumí SIEMPRE su significado de fútbol local argentino. Devolvé ÚNICAMENTE las palabras sin puntuación.'
+          // 💥 CORREGIDO 1: Usamos backticks ` para que ${currentYear} se reemplace por 2026
+          content: `Sos un asistente de búsqueda para una app de noticias en Argentina en el año ${currentYear}. El usuario te da 1 o 2 palabras. Tu única tarea es devolver un string de 5 a 7 palabras clave altamente descriptivas para buscar noticias en una base vectorizada de ${currentYear}. Si la palabra es un club deportivo o torneo ("copa sudamericana", "boca", "river"), asumí SIEMPRE su significado de fútbol local argentino. Devolvé ÚNICAMENTE las palabras sin puntuación.`
         },
         { role: 'user', content: topic }
       ],
@@ -167,19 +137,14 @@ async function findCandidatesForTopic(topic, limit, useCutoff = true) {
     ...(isMainCategory ? { category: topic } : { topic: new RegExp('^' + topic + '$', 'i') }),
   };
 
-  // 🛡️ FILTRO MONGO 1 y 2: Aplicamos siempre el corte estricto de 48 horas en la base de datos
   if (useCutoff) {
     baseQuery.publishedAt = { $gte: getFreshnessCutoff() };
   }
 
   const selectFields = [
-    '_id', 'title', 'url', 'sourceName',
-    'section', 'region', 'tags',
-    'category', 'topic',
-    'importanceScore', 'publishedAt',
-    'neutralTitle', 'neutralLead', 'neutralSummary',
-    'neutralityScore', 'politicalBiasRisk', 'curationStatus',
-    'rawSummary', 'contentSnippet', 'imageUrl',
+    '_id', 'title', 'url', 'sourceName', 'section', 'region', 'tags', 'category', 'topic',
+    'importanceScore', 'publishedAt', 'neutralTitle', 'neutralLead', 'neutralSummary',
+    'neutralityScore', 'politicalBiasRisk', 'curationStatus', 'rawSummary', 'contentSnippet', 'imageUrl', 'embedding'
   ].join(' ');
 
   let articles = await Article.find({ ...baseQuery, topicStatus: 'done' })
@@ -214,6 +179,8 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
 
   const usedUrls = new Set(alreadyShownUrls);
   const usedTitles = [...alreadyShownTitles];
+  // 💥 CORREGIDO 3: Clonamos el array para ir agregando los vectores de las notas seleccionadas en el mismo resumen
+  const dynamicSeenEmbeddings = [...seenEmbeddings]; 
   const results  = [];
 
   const rawOfficialTopics = [
@@ -246,20 +213,14 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     let fallbackCategory = null;
 
     if (isOfficial) {
-      // -------------------------------------------------------------
-      // CONSULTA 1: TEMA OFICIAL (Con filtro Mongo 48hs)
-      // -------------------------------------------------------------
       let candidates = await findCandidatesForTopic(topic, perTopicLimit, true);
-      bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
+      bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
 
-      // -------------------------------------------------------------
-      // CONSULTA 2: FALLBACK A CATEGORÍA (Con filtro Mongo 48hs)
-      // -------------------------------------------------------------
       if (!bestUnused) {
         const category = TOPIC_TO_CATEGORY[topic];
         if (category && category !== topic) {
           candidates = await findCandidatesForTopic(category, perTopicLimit, true);
-          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
+          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
           
           if (bestUnused) {
             usedFallback = true;
@@ -268,20 +229,15 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
         }
       }
     } else {
-      // -------------------------------------------------------------
-      // CONSULTA 3: TEMA LIBRE O VECTORES (Con filtro Mongo 48hs inyectado)
-      // -------------------------------------------------------------
       try {
-        // 💥 PASO 1: Expandimos "boca" a "Boca Juniors fútbol argentino Riquelme" usando IA
         const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
 
-        // 💥 PASO 2: Buscamos con ese vector perfecto y el filtro de 48 hs en Mongo
         const semanticCandidates = await searchArticlesBySimilarityAtlas(queryForEmbedding, { 
           limit: perTopicLimit * 2,
           minDate: getFreshnessCutoff() 
         });
 
-        const usableSemantic = semanticCandidates.filter(a => isUsableDigestArticle(a, usedUrls, seenEmbeddings));
+        const usableSemantic = semanticCandidates.filter(a => isUsableDigestArticle(a, usedUrls, dynamicSeenEmbeddings));
 
         if (usableSemantic.length > 0) {
           const bestMatch = usableSemantic[0];
@@ -293,14 +249,14 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           } else {
             fallbackCategory = bestMatch.category || 'General';
             let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
-            bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
+            bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
             usedFallback = true;
             console.warn(`⚠️  Score semántico bajo para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
           }
         } else {
           fallbackCategory = 'General';
           let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
-          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
+          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
           usedFallback = true;
           console.warn(`⚠️  Cero resultados vectoriales para "${trimmedTopic}". Fallback a "General".`);
         }
@@ -310,22 +266,21 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
       }
     }
 
-    // -------------------------------------------------------------
-    // CONSULTA 4: RESCATE DE EMERGENCIA EN MONGODB (Para que no devuelva null)
-    // -------------------------------------------------------------
     if (!bestUnused) {
       console.log(`🚨 [RESCATE] No hubo resultados para "${topic}". Buscando noticias frescas generales...`);
       try {
         const emergencyCandidates = await Article.find({
           publishedAt: { $gte: getFreshnessCutoff() },
-          topicStatus: 'done'
+          topicStatus: 'done',
+          // 💥 CORREGIDO 2: Piso mínimo de calidad para evitar noticias de farándula o irrelevantes con Score 0
+          importanceScore: { $gte: 35 } 
         })
           .sort({ importanceScore: -1, publishedAt: -1 })
           .limit(perTopicLimit * 3)
-          .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl')
+          .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl embedding')
           .lean();
 
-        bestUnused = emergencyCandidates.find((article) => isUsableDigestArticle(article, usedUrls, seenEmbeddings));
+        bestUnused = emergencyCandidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
         if (bestUnused) {
           usedFallback = true;
           fallbackCategory = bestUnused.category || 'General';
@@ -347,6 +302,14 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
 
     usedUrls.add(bestUnused.url);
     usedTitles.push(bestUnused.neutralTitle || bestUnused.title || "");
+    
+    // 💥 CORREGIDO 3: Guardamos el embedding de esta nota para que el próximo tema del mismo resumen no la repita
+    if (Array.isArray(bestUnused.embedding) && bestUnused.embedding.length > 0) {
+      dynamicSeenEmbeddings.push({
+        title: bestUnused.neutralTitle || bestUnused.title || "",
+        vector: bestUnused.embedding
+      });
+    }
     
     results.push({ 
       topic, 
