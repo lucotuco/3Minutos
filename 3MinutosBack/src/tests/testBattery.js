@@ -11,44 +11,99 @@ async function connectDB() {
 // Los 3 perfiles que ponen a prueba el 100% de la arquitectura
 const TEST_PROFILES = [
 {
-    name: '🚀 Perfil 1: Ecosistema Tech (Consumo OpenAI y Traducción)',
-    topics: ['Inteligencia Artificial', 'Emprendedores', 'startups'],
+    name: '⚽ Perfil 1: Apodos y Jerga de Fútbol Argentino',
+    topics: ['chiqui tapia', 'muñeco gallardo', 'racing club'],
+  },
+  {
+    name: '🏆 Perfil 2: Copas, Torneos y Selección',
+    topics: ['copa libertadores', 'scaloni', 'bombonera'],
   },
 
   // ============================================================================
-  // 2️⃣ EL TEST DEPORTIVO DE NICHO (Prueba del Corral y Rescate de Deportes)
+  // 🏛️ GRUPO 2: NOMBRES PROPIOS DE LA POLÍTICA
   // ============================================================================
-  // Objetivo: Sacamos al fútbol del medio. Pedimos "Básquet", "Tenis" y "Messi".
-  // Si no hay partidos de básquet o tenis hoy lunes, el sistema activará el Rescate.
-  // Verificá que el corral deportivo se mantenga impenetrable: debe traerte una nota
-  // de Fórmula 1, Juegos Centroamericanos u otro deporte, JAMÁS un policial.
+  // Desafío: Evaluar que los apellidos sueltos expandan a debates legislativos
+  // o gestión pública actual (2026), manteniendo un neutralityScore > 85.
   {
-    name: '🎾 Perfil 2: Deportes de Nicho (Rescate 100% Deportivo y Messi)',
-    topics: ['Básquet', 'Tenis', 'messi'],
+    name: '🏛️ Perfil 3: Líderes y Gobernadores',
+    topics: ['kicillof', 'villarruel', 'macri'],
+  },
+  {
+    name: '⚖️ Perfil 4: Agenda Institucional y Justicia',
+    topics: ['corte suprema', 'congreso', 'gremios'],
   },
 
   // ============================================================================
-  // 3️⃣ EL TEST DE ESPECTÁCULOS PURO (Prueba Anti-Clickbait y O Globo)
+  // 💸 GRUPO 3: MICROECONOMÍA Y FINANZAS DE BOLSILLO
   // ============================================================================
-  // Objetivo: Pedimos "Cine y Series", "Teatro y Literatura" y la query libre "netflix".
-  // En espectáculos suele haber mucho contenido en portugués desde Brasil (G1, O Globo)
-  // o notas con puntajes bajos. Verificá que traduzca todo al español rioplatense
-  // neutro, elimine el clickbait y que ningún puntaje caiga en 0.
+  // Desafío: Separar la economía de calle (alquileres, nafta, tarifas) de la
+  // timba financiera (dólar blue, plazos fijos, MEP), evitando notas duplicadas.
   {
-    name: '🍿 Perfil 3: Espectáculos y Cultura (Anti-Clickbait y Traducción)',
-    topics: ['Cine y Series', 'Teatro y Literatura', 'netflix'],
+    name: '🛒 Perfil 5: Finanzas Cotidianas y Bolsillo',
+    topics: ['plazo fijo', 'dolar blue', 'alquileres'],
+  },
+  {
+    name: '📊 Perfil 6: Precios de la Calle y Tarifas',
+    topics: ['nafta', 'prepagas', 'tarifas luz'],
   },
 
   // ============================================================================
-  // 4️⃣ EL TEST DE ALTA DIPLOMACIA (Prueba de Atribución de Fuentes y Sesgo)
+  // 🏢 GRUPO 4: MARCAS, EMPRESAS Y CONSUMO MASIVO
   // ============================================================================
-  // Objetivo: Pedimos "EEUU", "América Latina" y "Geopolítica". Acá abundan las notas
-  // de opinión y acusaciones políticas graves. Verificá que la IA asigne correctamente
-  // politicalBiasRisk: "high" o "medium" y que NINGUNA nota diga "según Clarín",
-  // "según la crónica" ni mencione al medio original.
+  // Desafío: Ver cómo el motor busca noticias corporativas, balances o balances
+  // empresariales sin caer en notas publicitarias vacías.
   {
-    name: '🗺️ Perfil 4: Geopolítica y Diplomacia (Neutralidad y Atribución)',
-    topics: ['EEUU', 'América Latina', 'Geopolítica'],
+    name: '🏢 Perfil 7: Empresas y Negocios Argentinos',
+    topics: ['mercado libre', 'ypf', 'aerolineas argentinas'],
+  },
+
+  // ============================================================================
+  // 🏎️ GRUPO 5: DEPORTES FUERA DEL FÚTBOL
+  // ============================================================================
+  // Desafío: Auditar que "colapinto" expanda a F1/automovilismo 2026 y no se
+  // mezcle con fútbol en el corral de categorías.
+  {
+    name: '🏎️ Perfil 8: Motor, Tenis y Atletas Globales',
+    topics: ['colapinto', 'formula 1', 'djokovic'],
+  },
+
+  // ============================================================================
+  // 📺 GRUPO 6: CULTURA VIRAL, STREAMERS Y CHIMENTOS
+  // ============================================================================
+  // Desafío: Poner a prueba el filtro anti-clickbait y la traducción del
+  // portugués (muy común en noticias de farándula o espectáculos importados).
+  {
+    name: '📺 Perfil 9: Chimentos, Realities y Redes',
+    topics: ['susana gimenez', 'streamers', 'lollapalooza'],
+  },
+
+  // ============================================================================
+  // 🧬 GRUPO 7: CIENCIA, SALUD Y TECH DE PUNTA
+  // ============================================================================
+  // Desafío: Auditar que guessCategoryForTopic guíe "dengue" o "salud mental"
+  // a Sociedad/Bienestar, y "chatgpt" a Tecnología sin fallbacks insólitos.
+  {
+    name: '🧬 Perfil 10: Salud Pública y Tech Avanzada',
+    topics: ['dengue', 'salud mental', 'chatgpt'],
+  },
+
+  // ============================================================================
+  // 🔀 GRUPO 8: PALABRAS AMBIGUAS O DE DOBLE SENTIDO (¡El Test Supremo!)
+  // ============================================================================
+  // Desafío: "copa" (¿torneo o bebida?), "banco" (¿entidad financiera o suplentes?),
+  // "redes" (¿sociales o eléctricas/pesca?). Ver cómo actúa el system prompt.
+  {
+    name: '🔀 Perfil 11: Palabras Ambiguas y Homónimos',
+    topics: ['copa', 'banco', 'redes'],
+  },
+
+  // ============================================================================
+  // 👤 GRUPO 9: EL USUARIO REALISTA PROMEDIO
+  // ============================================================================
+  // Desafío: El mix clásico que elegirá el 80% de tus usuarios al abrir la app.
+  {
+    name: '🎯 Perfil 12: El Mix Realista Argentino',
+    topics: ['river', 'dolar mep', 'netflix'],
   },
 ];
 

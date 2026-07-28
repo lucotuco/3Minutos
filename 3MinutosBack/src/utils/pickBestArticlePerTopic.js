@@ -47,7 +47,7 @@ async function expandTopicForEmbedding(rawTopic) {
         {
           role: 'system',
           // 💥 CORREGIDO 1: Usamos backticks ` para que ${currentYear} se reemplace por 2026
-          content: `Sos un asistente de búsqueda para una app de noticias en Argentina en el año ${currentYear}. El usuario te da 1 o 2 palabras. Tu única tarea es devolver un string de 5 a 7 palabras clave altamente descriptivas para buscar noticias en una base vectorizada de ${currentYear}. Si la palabra es un club deportivo o torneo ("copa sudamericana", "boca", "river"), asumí SIEMPRE su significado de fútbol local argentino. Devolvé ÚNICAMENTE las palabras sin puntuación.`
+          content: `Sos un motor de expansión de búsqueda para una base de datos vectorial periodística del año ${currentYear}.REGLA SUPREMA: El string que devuelvas DEBE EMPEZAR OBLIGATORIAMENTE con las palabras exactas que escribió el usuario, seguidas de 4 o 5 palabras clave que agreguen contexto, sinónimos o entidades relacionadas. NUNCA reemplaces ni elimines la palabra original. Devolvé ÚNICAMENTE la cadena de palabras en minúsculas, sin comas ni puntuación.`
         },
         { role: 'user', content: topic }
       ],
@@ -230,6 +230,9 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
         }
       }
     } else {
+      // -------------------------------------------------------------
+      // CONSULTA 3: TEMA LIBRE O VECTORES (Con Escudo Léxico y Anti-Alucinación)
+      // -------------------------------------------------------------
       try {
         const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
         queryExpanded = queryForEmbedding;
@@ -245,16 +248,41 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           const bestMatch = usableSemantic[0];
           console.log(`🔍 [Tema Libre] "${trimmedTopic}" -> Match: "${bestMatch.title}" | Score: ${bestMatch.score?.toFixed(3)}`);
           
-          if (bestMatch.score >= 0.60) {
+          // 1. ZONA ORO (Score >= 0.77): Es un golazo semántico indiscutible. Entra directo.
+          if (bestMatch.score >= 0.77) {
             bestUnused = bestMatch;
             usedFallback = false;
-          } else {
-            // 💥 CORREGIDO: Si el score es bajo, caemos a la categoría real del artículo (ej. Deportes), NUNCA a 'General'
+          } 
+          // 2. ZONA GRIS (Score entre 0.68 y 0.76): Aplicamos el ESCUDO LÉXICO para ver si es real o alucinación.
+          else if (bestMatch.score >= 0.68) {
+            const topicClean = normalizeText(trimmedTopic);
+            const contentToSearch = normalizeText(
+              `${bestMatch.title} ${bestMatch.rawSummary} ${bestMatch.contentSnippet} ${(bestMatch.tags || []).join(' ')}`
+            );
+
+            // Filtramos palabras >= 3 letras para que atrape siglas argentinas (AFA, FMI, YPF, CGT)
+            const wordsToMatch = topicClean.split(' ').filter(w => w.length >= 3);
+            const hasLexicalMatch = wordsToMatch.length > 0 
+              ? wordsToMatch.some(word => contentToSearch.includes(word))
+              : contentToSearch.includes(topicClean);
+
+            if (hasLexicalMatch) {
+              bestUnused = bestMatch;
+              usedFallback = false; // ¡La palabra está escrita en la nota! Es legítima, no encendemos cartel amarillo.
+            } else {
+              // Tiene buen score vectorial pero NO menciona la palabra (ej: San Luis para Villarruel).
+              bestUnused = bestMatch;
+              usedFallback = true; // Se marca como sugerido y prenderá el banner amarillo en la app.
+              console.warn(`⚠️ Match semántico indirecto (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". No menciona la palabra, se marca como sugerido.`);
+            }
+          } 
+          // 3. ZONA ROJA (Score < 0.68): Parecido muy pobre. Caemos a la categoría real del artículo (ej. Deportes) o Sociedad.
+          else {
             fallbackCategory = bestMatch.category || 'Sociedad';
             let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
             bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
             usedFallback = true;
-            console.warn(`⚠️ Score semántico bajo para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
+            console.warn(`⚠️ Score semántico bajo (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
           }
         } else {
           // 💥 CORREGIDO: Si no hay vectores, buscamos en Sociedad o Internacional en lugar de una categoría inexistente
