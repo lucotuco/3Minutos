@@ -211,6 +211,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     let bestUnused = null;
     let usedFallback = false;
     let fallbackCategory = null;
+    let queryExpanded = null;
 
     if (isOfficial) {
       let candidates = await findCandidatesForTopic(topic, perTopicLimit, true);
@@ -231,6 +232,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     } else {
       try {
         const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
+        queryExpanded = queryForEmbedding;
 
         const semanticCandidates = await searchArticlesBySimilarityAtlas(queryForEmbedding, { 
           limit: perTopicLimit * 2,
@@ -319,6 +321,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     if (!bestUnused) {
       results.push({ 
         topic, 
+        queryExpanded,
         article: null,
         usedFallback: false,
         fallbackCategory: null,
@@ -339,6 +342,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     
     results.push({ 
       topic, 
+      queryExpanded,
       article: bestUnused,
       usedFallback,
       fallbackCategory,

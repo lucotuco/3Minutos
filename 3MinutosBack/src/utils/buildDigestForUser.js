@@ -65,6 +65,7 @@ async function buildDigestForUser(userId) {
       motivo: 'refresh_test',
       noticias: (digest.items || []).map((item) => ({
         topicoUsuario: item.topic || '',
+        queryExpanded: item.queryExpanded || null,
         titulo: item.neutralTitle || item.title || '',
         summaryLead: item.neutralLead || item.lead || '',
         summary: item.neutralSummary || item.summary || '',

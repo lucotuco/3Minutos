@@ -59,7 +59,6 @@ async function buildUserNewsDigest({
       return { items: [] };
     }
 
-    // numCandidates ya no aplica — la búsqueda es por categoría/topic exacto
     const picks = await timeAsync(
       'pickBestArticlePerTopic',
       () => pickBestArticlePerTopic(topics, { perTopicLimit, alreadyShownUrls,alreadyShownTitles, seenEmbeddings}),
@@ -71,6 +70,7 @@ async function buildUserNewsDigest({
         if (!pick.article) {
           return {
             topic:       pick.topic,
+            queryExpanded: pick.queryExpanded || null,
             articleId:   null,
             title:       null,
             neutralTitle: null,
@@ -123,6 +123,7 @@ async function buildUserNewsDigest({
 
         return {
           topic:         pick.topic,
+          queryExpanded: pick.queryExpanded || null,
           articleId:     String(pick.article._id),
 
           title:         neutralTitle,
@@ -154,7 +155,7 @@ async function buildUserNewsDigest({
 
           score:      pick.article.score      ?? null,
           finalScore: pick.article.finalScore ?? null,
-          rankingScore: pick.article.rankingScore ?? null,  // ← nuevo, útil para debug
+          rankingScore: pick.article.rankingScore ?? null,
           
           usedFallback:     Boolean(pick.usedFallback),
           fallbackCategory: pick.fallbackCategory || null,
