@@ -249,17 +249,30 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           console.log(`🔍 [Tema Libre] "${trimmedTopic}" -> Match: "${bestMatch.title}" | Score: ${bestMatch.score?.toFixed(3)}`);
           
           if (bestMatch.score >= 0.60) {
+            // -------------------------------------------------------------
+            // ESCUDO LÉXICO STRICTO (Anti "Media Palabra")
+            // -------------------------------------------------------------
             const topicClean = normalizeText(trimmedTopic);
             const contentToSearch = normalizeText(
               `${bestMatch.title} ${bestMatch.rawSummary} ${bestMatch.contentSnippet} ${(bestMatch.tags || []).join(' ')}`
             );
 
-            const wordsToMatch = topicClean.split(' ').filter(w => w.length >= 4);
+            // Filtramos palabras con 3 o más letras (para incluir siglas como AFA, FMI, YPF)
+            const wordsToMatch = topicClean.split(' ').filter(w => w.length >= 3);
             let hasLexicalMatch = false;
 
             if (wordsToMatch.length > 0) {
-              const matchedWords = wordsToMatch.filter(word => contentToSearch.includes(word));
-              hasLexicalMatch = (matchedWords.length >= Math.ceil(wordsToMatch.length / 2)) || contentToSearch.includes(topicClean);
+              if (wordsToMatch.length <= 3) {
+                // 💥 REGLA DE ORO PARA NOMBRES Y TÉRMINOS CORTOS (1 a 3 palabras):
+                // Exigimos que esté la frase completa O que TODAS las palabras clave existan en el texto.
+                hasLexicalMatch = contentToSearch.includes(topicClean) || 
+                                  wordsToMatch.every(word => contentToSearch.includes(word));
+              } else {
+                // PARA FRASES LARGAS (4+ palabras): Exigimos al menos el 75% de coincidencia
+                const matchedWords = wordsToMatch.filter(word => contentToSearch.includes(word));
+                hasLexicalMatch = (matchedWords.length >= Math.ceil(wordsToMatch.length * 0.75)) || 
+                                  contentToSearch.includes(topicClean);
+              }
             } else {
               hasLexicalMatch = contentToSearch.includes(topicClean);
             }
@@ -267,10 +280,10 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
             bestUnused = bestMatch;
             
             if (hasLexicalMatch) {
-              usedFallback = false;
+              usedFallback = false; // Match real y verificado
             } else {
-              usedFallback = true;
-              console.warn(`⚠️ Match semántico indirecto (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". Se marca como sugerido.`);
+              usedFallback = true;  // Match indirecto, se prende el banner amarillo
+              console.warn(`⚠️ Match semántico indirecto (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". No contiene el término exacto, se marca como sugerido.`);
             }
           } 
           else {
