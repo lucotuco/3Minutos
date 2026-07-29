@@ -11,99 +11,96 @@ async function connectDB() {
 // Los 3 perfiles que ponen a prueba el 100% de la arquitectura
 const TEST_PROFILES = [
 {
-    name: '⚽ Perfil 1: Apodos y Jerga de Fútbol Argentino',
-    topics: ['chiqui tapia', 'muñeco gallardo', 'racing club'],
-  },
-  {
-    name: '🏆 Perfil 2: Copas, Torneos y Selección',
-    topics: ['copa libertadores', 'scaloni', 'bombonera'],
+    name: '🦁 Perfil 1: Selecciones Nacionales',
+    topics: ['las leonas', 'los pumas', 'las panteras'],
   },
 
   // ============================================================================
-  // 🏛️ GRUPO 2: NOMBRES PROPIOS DE LA POLÍTICA
+  // 📏 GRUPO 2: LA TRAMPA DE LAS 3 Y 4 PALABRAS (Filtro >= 5)
   // ============================================================================
-  // Desafío: Evaluar que los apellidos sueltos expandan a debates legislativos
-  // o gestión pública actual (2026), manteniendo un neutralityScore > 85.
+  // Desafío: Antes el código salteaba la IA con 3 palabras. Ahora tópicos de 4
+  // palabras como estos DEBEN pasar por la IA para ganar contexto.
   {
-    name: '🏛️ Perfil 3: Líderes y Gobernadores',
-    topics: ['kicillof', 'villarruel', 'macri'],
-  },
-  {
-    name: '⚖️ Perfil 4: Agenda Institucional y Justicia',
-    topics: ['corte suprema', 'congreso', 'gremios'],
+    name: '📏 Perfil 2: Entidades de 4 palabras',
+    topics: ['banco central republica argentina', 'campeonato de primera division', 'ministerio de capital humano'],
   },
 
   // ============================================================================
-  // 💸 GRUPO 3: MICROECONOMÍA Y FINANZAS DE BOLSILLO
+  // 🛸 GRUPO 3: EL TEST DE CAÍDA LIBRE (Filtro de Fallback 'ar')
   // ============================================================================
-  // Desafío: Separar la economía de calle (alquileres, nafta, tarifas) de la
-  // timba financiera (dólar blue, plazos fijos, MEP), evitando notas duplicadas.
+  // Desafío: Temas absurdos o muy lejanos de los que seguro NO hay noticias hoy.
+  // Debe forzar el fallback y traer noticias de ARGENTINA, no crímenes de Brasil.
   {
-    name: '🛒 Perfil 5: Finanzas Cotidianas y Bolsillo',
-    topics: ['plazo fijo', 'dolar blue', 'alquileres'],
-  },
-  {
-    name: '📊 Perfil 6: Precios de la Calle y Tarifas',
-    topics: ['nafta', 'prepagas', 'tarifas luz'],
+    name: '🛸 Perfil 3: Temas Inexistentes (Test de Fallback)',
+    topics: ['terremoto en marte', 'elecciones en mongolia', 'crisis en islandia'],
   },
 
   // ============================================================================
-  // 🏢 GRUPO 4: MARCAS, EMPRESAS Y CONSUMO MASIVO
+  // 🧠 GRUPO 4: CONCEPTOS ABSTRACTOS (Prueba de la Zona Oro > 0.82)
   // ============================================================================
-  // Desafío: Ver cómo el motor busca noticias corporativas, balances o balances
-  // empresariales sin caer en notas publicitarias vacías.
+  // Desafío: El usuario no busca una palabra exacta, sino un concepto. 
+  // El RRF debe encontrar notas afines y el Escudo Léxico NO debe bloquearlas.
   {
-    name: '🏢 Perfil 7: Empresas y Negocios Argentinos',
-    topics: ['mercado libre', 'ypf', 'aerolineas argentinas'],
+    name: '🧠 Perfil 4: Búsquedas Conceptuales',
+    topics: ['ahorro y finanzas personales', 'clima politico actual', 'novedades mercado inmobiliario'],
   },
 
   // ============================================================================
-  // 🏎️ GRUPO 5: DEPORTES FUERA DEL FÚTBOL
+  // 🎯 GRUPO 5: NOMBRES PROPIOS DE ALTO PERFIL (Precisión RRF)
   // ============================================================================
-  // Desafío: Auditar que "colapinto" expanda a F1/automovilismo 2026 y no se
-  // mezcle con fútbol en el corral de categorías.
+  // Desafío: Verificar que no mezcle a Caputo (Santiago vs Toto) y que 
+  // Riquelme no traiga notas genéricas de Boca sin mencionarlo a él.
   {
-    name: '🏎️ Perfil 8: Motor, Tenis y Atletas Globales',
-    topics: ['colapinto', 'formula 1', 'djokovic'],
+    name: '🎯 Perfil 5: Figuras Hiper-Específicas',
+    topics: ['santiago caputo', 'juan roman riquelme', 'marcos galperin'],
   },
 
   // ============================================================================
-  // 📺 GRUPO 6: CULTURA VIRAL, STREAMERS Y CHIMENTOS
+  // 🔀 GRUPO 6: AMBIGÜEDAD DE DICCIONARIO
   // ============================================================================
-  // Desafío: Poner a prueba el filtro anti-clickbait y la traducción del
-  // portugués (muy común en noticias de farándula o espectáculos importados).
+  // Desafío: "blanco" (¿color, presidente de Racing o apellido?), "corona" 
+  // (¿virus, realeza o cerveza?), "vela" (¿deporte, objeto o apellido?).
   {
-    name: '📺 Perfil 9: Chimentos, Realities y Redes',
-    topics: ['susana gimenez', 'streamers', 'lollapalooza'],
+    name: '🔀 Perfil 6: Palabras Trampa',
+    topics: ['blanco', 'corona', 'vela'],
   },
 
   // ============================================================================
-  // 🧬 GRUPO 7: CIENCIA, SALUD Y TECH DE PUNTA
+  // 📉 GRUPO 7: MICRO-NICHOS ECONÓMICOS
   // ============================================================================
-  // Desafío: Auditar que guessCategoryForTopic guíe "dengue" o "salud mental"
-  // a Sociedad/Bienestar, y "chatgpt" a Tecnología sin fallbacks insólitos.
+  // Desafío: Términos técnicos que el motor léxico (texto) debe cazar 
+  // con exactitud sin que el vector se vaya a economía general.
   {
-    name: '🧬 Perfil 10: Salud Pública y Tech Avanzada',
-    topics: ['dengue', 'salud mental', 'chatgpt'],
+    name: '📉 Perfil 7: Jerga Económica',
+    topics: ['ccl', 'inflacion nucleo', 'paritarias'],
   },
 
   // ============================================================================
-  // 🔀 GRUPO 8: PALABRAS AMBIGUAS O DE DOBLE SENTIDO (¡El Test Supremo!)
+  // 📺 GRUPO 8: ENTRETENIMIENTO Y SERIES LOCALES
   // ============================================================================
-  // Desafío: "copa" (¿torneo o bebida?), "banco" (¿entidad financiera o suplentes?),
-  // "redes" (¿sociales o eléctricas/pesca?). Ver cómo actúa el system prompt.
+  // Desafío: Separar títulos de series ("El Encargado") del trabajo real 
+  // de un encargado de edificio.
   {
-    name: '🔀 Perfil 11: Palabras Ambiguas y Homónimos',
-    topics: ['copa', 'banco', 'redes'],
+    name: '📺 Perfil 8: Streaming y Pop Culture',
+    topics: ['el encargado', 'casados con hijos', 'maria becerra'],
   },
 
   // ============================================================================
-  // 👤 GRUPO 9: EL USUARIO REALISTA PROMEDIO
+  // 🌍 GRUPO 9: GEOPOLÍTICA DURA
   // ============================================================================
-  // Desafío: El mix clásico que elegirá el 80% de tus usuarios al abrir la app.
+  // Desafío: Ver cómo el motor híbrido prioriza notas internacionales pesadas.
   {
-    name: '🎯 Perfil 12: El Mix Realista Argentino',
-    topics: ['river', 'dolar mep', 'netflix'],
+    name: '🌍 Perfil 9: Internacionales',
+    topics: ['kamala harris', 'union europea', 'guerra en gaza'],
+  },
+
+  // ============================================================================
+  // 🏎️ GRUPO 10: DEPORTES MENOS MASIVOS
+  // ============================================================================
+  // Desafío: Evitar que el fútbol se trague a otros deportes locales.
+  {
+    name: '🏎️ Perfil 10: Deportes Especializados',
+    topics: ['turismo carretera', 'liga nacional de basquet', 'polo argentino'],
   },
 ];
 

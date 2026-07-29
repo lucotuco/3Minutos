@@ -34,7 +34,7 @@ function normalizeText(value) {
 async function expandTopicForEmbedding(rawTopic) {
   const topic = String(rawTopic || '').trim();
   
-  if (topic.split(/\s+/).length >= 3) {
+  if (topic.split(/\s+/).length >= 5) {
     return topic;
   }
 
@@ -46,8 +46,7 @@ async function expandTopicForEmbedding(rawTopic) {
       messages: [
         {
           role: 'system',
-          // 💥 CORREGIDO 1: Usamos backticks ` para que ${currentYear} se reemplace por 2026
-          content: `Sos un motor de expansión de búsqueda para una base de datos vectorial periodística del año ${currentYear}.REGLA SUPREMA: El string que devuelvas DEBE EMPEZAR OBLIGATORIAMENTE con las palabras exactas que escribió el usuario, seguidas de 4 o 5 palabras clave que agreguen contexto, sinónimos o entidades relacionadas. NUNCA reemplaces ni elimines la palabra original. Devolvé ÚNICAMENTE la cadena de palabras en minúsculas, sin comas ni puntuación.`
+          content: `Sos un motor de expansión de búsqueda para una base de datos vectorial periodística del año ${currentYear}.REGLA SUPREMA: El string que devuelvas DEBE EMPEZAR OBLIGATORIAMENTE con las palabras exactas que escribió el usuario, seguidas de 4 o 5 palabras clave que agreguen contexto o entidades relacionadas. NUNCA reemplaces ni elimines la palabra original. REGLA ANTI-RUIDO: NO agregues palabras genéricas como "historia", "rivalidades", "equipo", "deportivo". Si el usuario pide "leonas", "pumas", "maravillas", asumilos SIEMPRE como selecciones nacionales argentinas de deporte. Devolvé ÚNICAMENTE la cadena en minúsculas sin puntuación.`
         },
         { role: 'user', content: topic }
       ],
@@ -134,6 +133,7 @@ async function findCandidatesForTopic(topic, limit, useCutoff = true) {
   const isMainCategory = ALL_CATEGORIES.includes(topic);
 
   const baseQuery = {
+    country: 'ar',
     ...(isMainCategory ? { category: topic } : { topic: new RegExp('^' + topic + '$', 'i') }),
   };
 
@@ -237,7 +237,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
         const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
         queryExpanded = queryForEmbedding;
 
-        const semanticCandidates = await searchArticlesBySimilarityAtlas(queryForEmbedding, { 
+        const semanticCandidates = await searchArticlesBySimilarityAtlas(trimmedTopic, queryForEmbedding, { 
           limit: perTopicLimit * 2,
           minDate: getFreshnessCutoff() 
         });
@@ -248,41 +248,36 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           const bestMatch = usableSemantic[0];
           console.log(`🔍 [Tema Libre] "${trimmedTopic}" -> Match: "${bestMatch.title}" | Score: ${bestMatch.score?.toFixed(3)}`);
           
-          // 1. ZONA ORO (Score >= 0.77): Es un golazo semántico indiscutible. Entra directo.
-          if (bestMatch.score >= 0.77) {
-            bestUnused = bestMatch;
-            usedFallback = false;
-          } 
-          // 2. ZONA GRIS (Score entre 0.68 y 0.76): Aplicamos el ESCUDO LÉXICO para ver si es real o alucinación.
-          else if (bestMatch.score >= 0.68) {
+          if (bestMatch.score >= 0.60) {
             const topicClean = normalizeText(trimmedTopic);
             const contentToSearch = normalizeText(
               `${bestMatch.title} ${bestMatch.rawSummary} ${bestMatch.contentSnippet} ${(bestMatch.tags || []).join(' ')}`
             );
 
-            // Filtramos palabras >= 3 letras para que atrape siglas argentinas (AFA, FMI, YPF, CGT)
-            const wordsToMatch = topicClean.split(' ').filter(w => w.length >= 3);
-            const hasLexicalMatch = wordsToMatch.length > 0 
-              ? wordsToMatch.some(word => contentToSearch.includes(word))
-              : contentToSearch.includes(topicClean);
+            const wordsToMatch = topicClean.split(' ').filter(w => w.length >= 4);
+            let hasLexicalMatch = false;
 
-            if (hasLexicalMatch) {
-              bestUnused = bestMatch;
-              usedFallback = false; // ¡La palabra está escrita en la nota! Es legítima, no encendemos cartel amarillo.
+            if (wordsToMatch.length > 0) {
+              const matchedWords = wordsToMatch.filter(word => contentToSearch.includes(word));
+              hasLexicalMatch = (matchedWords.length >= Math.ceil(wordsToMatch.length / 2)) || contentToSearch.includes(topicClean);
             } else {
-              // Tiene buen score vectorial pero NO menciona la palabra (ej: San Luis para Villarruel).
-              bestUnused = bestMatch;
-              usedFallback = true; // Se marca como sugerido y prenderá el banner amarillo en la app.
-              console.warn(`⚠️ Match semántico indirecto (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". No menciona la palabra, se marca como sugerido.`);
+              hasLexicalMatch = contentToSearch.includes(topicClean);
+            }
+
+            bestUnused = bestMatch;
+            
+            if (hasLexicalMatch) {
+              usedFallback = false;
+            } else {
+              usedFallback = true;
+              console.warn(`⚠️ Match semántico indirecto (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". Se marca como sugerido.`);
             }
           } 
-          // 3. ZONA ROJA (Score < 0.68): Parecido muy pobre. Caemos a la categoría real del artículo (ej. Deportes) o Sociedad.
           else {
             fallbackCategory = bestMatch.category || 'Sociedad';
             let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
             bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
             usedFallback = true;
-            console.warn(`⚠️ Score semántico bajo (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
           }
         } else {
           // 💥 CORREGIDO: Si no hay vectores, buscamos en Sociedad o Internacional en lugar de una categoría inexistente
@@ -306,6 +301,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
       try {
         // 💥 CORREGIDO: Si el tema era deportivo o económico, intentamos rescatar dentro de su misma área general primero
         let emergencyFilter = {
+          country: 'ar',
           publishedAt: { $gte: getFreshnessCutoff() },
           topicStatus: 'done',
           importanceScore: { $gte: 40 } // Piso de calidad elevado
