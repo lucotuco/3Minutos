@@ -16,6 +16,7 @@ const { buildDigestForUser } = require('../utils/buildDigestForUser');
 const { saveShownArticlesForUser } = require('../utils/saveShownArticlesForUser');
 const { getLocalDateString } = require('../utils/dateHelpers');
 const { publicUser } = require('../utils/publicUser');
+const DigestTestLog = require('../models/DigestTestLog');
 const { getStaticConnectors } = require('../audio/getStaticConnectors');
 const {
   authRequired,
@@ -830,6 +831,43 @@ const connectorsPromise = getStaticConnectors();
         error: 'Failed to process on-demand audio playlist',
         code: 'PLAY_AUDIO_FAILED',
         details: error.message
+      });
+    }
+  }
+);
+
+router.delete(
+  '/:userId',
+  authRequired,
+  validateUserId,
+  requireSameUserParam('userId'),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      // 1. Buscamos y eliminamos el perfil principal del usuario
+      const deletedUser = await UserPreference.findByIdAndDelete(userId);
+
+      if (!deletedUser) {
+        return userNotFoundResponse(res);
+      }
+
+      // 2. Eliminamos todo su rastro de la base de datos (Historial, Runs y Logs)
+      await Promise.all([
+        UserDeliveryRun.deleteMany({ userId }),
+        UserShownArticle.deleteMany({ userId }),
+        DigestTestLog.deleteMany({ idUsuario: userId }),
+      ]);
+
+      console.log(`🗑️ Cuenta y datos eliminados con éxito para el usuario: ${userId}`);
+
+      return res.status(200).json({ ok: true });
+    } catch (error) {
+      console.error('[DELETE /users/:userId]', error);
+
+      return res.status(500).json({
+        error: 'Error al eliminar la cuenta',
+        code: 'DELETE_ACCOUNT_FAILED',
       });
     }
   }
