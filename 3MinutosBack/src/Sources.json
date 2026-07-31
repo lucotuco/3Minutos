@@ -1303,5 +1303,14 @@
     "country": "mx",
     "priority": 2,
     "active": true
+  },
+  {
+    "name": "Aurpra Noticias",
+    "type": "rss",
+    "url": "https://www.aurora-israel.co.il/feed",
+    "category": "general",
+    "country": "il",
+    "priority": 2,
+    "active": true
   }
 ]

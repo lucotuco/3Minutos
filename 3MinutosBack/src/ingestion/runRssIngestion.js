@@ -139,14 +139,19 @@ async function runRssIngestion() {
 
         const processedArticles = [];
 
-        for (const item of top50Items) {
+        for (const item of top50Items) 
+        {
           try {
             const adapted = adaptRssArticle(item, source);
 
-            // Filtrar artículos que solo tienen la imagen de fallback
-            if (adapted.imageUrl === FALLBACK_IMAGE_URL) {
-              console.log(`🦆 Noticia descartada por no tener imagen original: ${adapted.title}`);
-              continue;
+            // NUEVA LÓGICA: Detectar si es la imagen de fallback o un logo de Aurora
+            const isFallbackImage = adapted.imageUrl === FALLBACK_IMAGE_URL;
+            const isAuroraLogo = adapted.imageUrl && adapted.imageUrl.includes('LOGO-AURORA');
+
+            // Filtrar artículos inválidos
+            if (isFallbackImage || isAuroraLogo) {
+              console.log(`🦆 Noticia descartada por no tener imagen válida: ${adapted.title}`);
+              continue; // Salta a la siguiente noticia, no la guarda en la BD
             }
 
             const processed = processArticle(adapted, {
