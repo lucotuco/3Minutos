@@ -31,11 +31,13 @@ async function searchArticlesBySimilarityAtlas(exactQuery, vectorQuery, options 
     section,
     region,
     minDate,
+    category
   } = options;
 
   const queryVector = await generateQueryEmbedding(vectorQuery);
 
   const filter = {};
+  if (category) filter.category = category;
   if (section) filter.section = section;
   if (region) filter.region = region;
   if (minDate) filter.publishedAt = { $gte: new Date(minDate) };
@@ -174,14 +176,14 @@ function computeFinalScore(article = {}) {
 
   if (isPreviewOrAgenda) {
     normalizedImportance = normalizedImportance * 0.1;
-    return (vectorScore * 0.4 + normalizedImportance * 0.05 + freshnessScore * 0.05);
+    return (vectorScore * 0.4 + normalizedImportance * 0.05 + freshnessScore * 0.05) * 100;
   }
 
   return (
     vectorScore * 0.9 +
     normalizedImportance * 0.05 +
     freshnessScore * 0.05
-  );
+  ) * 100;
 }
 
 module.exports = {

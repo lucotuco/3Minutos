@@ -11,97 +11,21 @@ async function connectDB() {
 // Los 3 perfiles que ponen a prueba el 100% de la arquitectura
 const TEST_PROFILES = [
 {
-    name: '🦁 Perfil 1: Selecciones Nacionales',
-    topics: ['las leonas', 'los pumas', 'las panteras'],
+    name: ' Perfil 15:',
+    topics: ["Fútbol", "Política", "Avistamiento de Ovnis"] 
   },
-
-  // ============================================================================
-  // 📏 GRUPO 2: LA TRAMPA DE LAS 3 Y 4 PALABRAS (Filtro >= 5)
-  // ============================================================================
-  // Desafío: Antes el código salteaba la IA con 3 palabras. Ahora tópicos de 4
-  // palabras como estos DEBEN pasar por la IA para ganar contexto.
   {
-    name: '📏 Perfil 2: Entidades de 4 palabras',
-    topics: ['banco central republica argentina', 'campeonato de primera division', 'ministerio de capital humano'],
+    name: ' Perfil 16:',
+    topics: ["Dólar y Mercados", "Tecnología", "Startups Argentinas"] 
   },
-
-  // ============================================================================
-  // 🛸 GRUPO 3: EL TEST DE CAÍDA LIBRE (Filtro de Fallback 'ar')
-  // ============================================================================
-  // Desafío: Temas absurdos o muy lejanos de los que seguro NO hay noticias hoy.
-  // Debe forzar el fallback y traer noticias de ARGENTINA, no crímenes de Brasil.
   {
-    name: '🛸 Perfil 3: Temas Inexistentes (Test de Fallback)',
-    topics: ['terremoto en marte', 'elecciones en mongolia', 'crisis en islandia'],
+    name: ' Perfil 17:',
+    topics: ["Salud", "Medio Oriente", "Recetas Veganas"] 
   },
-
-  // ============================================================================
-  // 🧠 GRUPO 4: CONCEPTOS ABSTRACTOS (Prueba de la Zona Oro > 0.82)
-  // ============================================================================
-  // Desafío: El usuario no busca una palabra exacta, sino un concepto. 
-  // El RRF debe encontrar notas afines y el Escudo Léxico NO debe bloquearlas.
   {
-    name: '🧠 Perfil 4: Búsquedas Conceptuales',
-    topics: ['ahorro y finanzas personales', 'clima politico actual', 'novedades mercado inmobiliario'],
-  },
-
-  // ============================================================================
-  // 🎯 GRUPO 5: NOMBRES PROPIOS DE ALTO PERFIL (Precisión RRF)
-  // ============================================================================
-  // Desafío: Verificar que no mezcle a Caputo (Santiago vs Toto) y que 
-  // Riquelme no traiga notas genéricas de Boca sin mencionarlo a él.
-  {
-    name: '🎯 Perfil 5: Figuras Hiper-Específicas',
-    topics: ['santiago caputo', 'juan roman riquelme', 'marcos galperin'],
-  },
-
-  // ============================================================================
-  // 🔀 GRUPO 6: AMBIGÜEDAD DE DICCIONARIO
-  // ============================================================================
-  // Desafío: "blanco" (¿color, presidente de Racing o apellido?), "corona" 
-  // (¿virus, realeza o cerveza?), "vela" (¿deporte, objeto o apellido?).
-  {
-    name: '🔀 Perfil 6: Palabras Trampa',
-    topics: ['blanco', 'corona', 'vela'],
-  },
-
-  // ============================================================================
-  // 📉 GRUPO 7: MICRO-NICHOS ECONÓMICOS
-  // ============================================================================
-  // Desafío: Términos técnicos que el motor léxico (texto) debe cazar 
-  // con exactitud sin que el vector se vaya a economía general.
-  {
-    name: '📉 Perfil 7: Jerga Económica',
-    topics: ['ccl', 'inflacion nucleo', 'paritarias'],
-  },
-
-  // ============================================================================
-  // 📺 GRUPO 8: ENTRETENIMIENTO Y SERIES LOCALES
-  // ============================================================================
-  // Desafío: Separar títulos de series ("El Encargado") del trabajo real 
-  // de un encargado de edificio.
-  {
-    name: '📺 Perfil 8: Streaming y Pop Culture',
-    topics: ['el encargado', 'casados con hijos', 'maria becerra'],
-  },
-
-  // ============================================================================
-  // 🌍 GRUPO 9: GEOPOLÍTICA DURA
-  // ============================================================================
-  // Desafío: Ver cómo el motor híbrido prioriza notas internacionales pesadas.
-  {
-    name: '🌍 Perfil 9: Internacionales',
-    topics: ['kamala harris', 'union europea', 'guerra en gaza'],
-  },
-
-  // ============================================================================
-  // 🏎️ GRUPO 10: DEPORTES MENOS MASIVOS
-  // ============================================================================
-  // Desafío: Evitar que el fútbol se trague a otros deportes locales.
-  {
-    name: '🏎️ Perfil 10: Deportes Especializados',
-    topics: ['turismo carretera', 'liga nacional de basquet', 'polo argentino'],
-  },
+    name: ' Perfil 18:',
+    topics: ["Cine y Series", "Música", "Ley de Alquileres"] 
+  }
 ];
 
 async function runBattery() {

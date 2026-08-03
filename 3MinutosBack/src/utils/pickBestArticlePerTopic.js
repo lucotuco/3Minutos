@@ -201,11 +201,8 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     const normTopic = normalizeText(trimmedTopic);
     
     let topic = trimmedTopic;
-    let isOfficial = false;
-
     if (officialTopicsMap.has(normTopic)) {
       topic = officialTopicsMap.get(normTopic); 
-      isOfficial = true;
     }
     
     let bestUnused = null;
@@ -213,97 +210,94 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     let fallbackCategory = null;
     let queryExpanded = null;
 
-    if (isOfficial) {
-      let candidates = await findCandidatesForTopic(topic, perTopicLimit, true);
-      bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
+    // 💥 NUEVO: ESTABLECEMOS EL CORRAL GEOGRÁFICO/DISCIPLINARIO
+    let strictCategoryFilter = null;
+    if (ALL_CATEGORIES.includes(topic)) {
+      strictCategoryFilter = topic; // Ej: Eligió "Política"
+    } else if (TOPIC_TO_CATEGORY[topic]) {
+      strictCategoryFilter = TOPIC_TO_CATEGORY[topic]; // Ej: Eligió "Básquet" -> Corral: "Deportes"
+    }
 
-      if (!bestUnused) {
-        const category = TOPIC_TO_CATEGORY[topic];
-        if (category && category !== topic) {
-          candidates = await findCandidatesForTopic(category, perTopicLimit, true);
-          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
-          
-          if (bestUnused) {
-            usedFallback = true;
-            fallbackCategory = category;
-          }
-        }
+    // -------------------------------------------------------------
+    // CONSULTA UNIFICADA: MOTOR HÍBRIDO (Vectores + BM25)
+    // -------------------------------------------------------------
+    try {
+      const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
+      queryExpanded = queryForEmbedding;
+
+      const searchOptions = { 
+        limit: perTopicLimit * 2,
+        minDate: getFreshnessCutoff() 
+      };
+
+      // 💥 APLICAMOS EL FILTRO DURO A LA BASE DE DATOS VECTORIAL
+      if (strictCategoryFilter) {
+        searchOptions.category = strictCategoryFilter;
       }
-    } else {
-      // -------------------------------------------------------------
-      // CONSULTA 3: TEMA LIBRE O VECTORES (Con Escudo Léxico y Anti-Alucinación)
-      // -------------------------------------------------------------
-      try {
-        const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
-        queryExpanded = queryForEmbedding;
 
-        const semanticCandidates = await searchArticlesBySimilarityAtlas(trimmedTopic, queryForEmbedding, { 
-          limit: perTopicLimit * 2,
-          minDate: getFreshnessCutoff() 
-        });
+      const semanticCandidates = await searchArticlesBySimilarityAtlas(trimmedTopic, queryForEmbedding, searchOptions);
 
-        const usableSemantic = semanticCandidates.filter(a => isUsableDigestArticle(a, usedUrls, dynamicSeenEmbeddings));
+      const usableSemantic = semanticCandidates.filter(a => isUsableDigestArticle(a, usedUrls, dynamicSeenEmbeddings));
 
-        if (usableSemantic.length > 0) {
-          const bestMatch = usableSemantic[0];
-          console.log(`🔍 [Tema Libre] "${trimmedTopic}" -> Match: "${bestMatch.title}" | Score: ${bestMatch.score?.toFixed(3)}`);
-          
-          if (bestMatch.score >= 0.60) {
-            // -------------------------------------------------------------
-            // ESCUDO LÉXICO STRICTO (Anti "Media Palabra")
-            // -------------------------------------------------------------
-            const topicClean = normalizeText(trimmedTopic);
-            const contentToSearch = normalizeText(
-              `${bestMatch.title} ${bestMatch.rawSummary} ${bestMatch.contentSnippet} ${(bestMatch.tags || []).join(' ')}`
-            );
+      if (usableSemantic.length > 0) {
+        const bestMatch = usableSemantic[0];
+        console.log(`🔍 [Motor Híbrido] "${trimmedTopic}" -> Match: "${bestMatch.title}" | Score: ${bestMatch.score?.toFixed(3)} | Corral: ${strictCategoryFilter || 'Libre'}`);
+        
+        if (bestMatch.score >= 0.60) {
+          // -------------------------------------------------------------
+          // ESCUDO LÉXICO STRICTO (Anti "Media Palabra")
+          // -------------------------------------------------------------
+          const topicClean = normalizeText(trimmedTopic);
+          const contentToSearch = normalizeText(
+            `${bestMatch.title} ${bestMatch.rawSummary} ${bestMatch.contentSnippet} ${(bestMatch.tags || []).join(' ')}`
+          );
 
-            // Filtramos palabras con 3 o más letras (para incluir siglas como AFA, FMI, YPF)
-            const wordsToMatch = topicClean.split(' ').filter(w => w.length >= 3);
-            let hasLexicalMatch = false;
+          // Filtramos palabras con 3 o más letras (para incluir siglas como AFA, FMI, YPF)
+          const wordsToMatch = topicClean.split(' ').filter(w => w.length >= 3);
+          let hasLexicalMatch = false;
 
-            if (wordsToMatch.length > 0) {
-              if (wordsToMatch.length <= 3) {
-                // 💥 REGLA DE ORO PARA NOMBRES Y TÉRMINOS CORTOS (1 a 3 palabras):
-                // Exigimos que esté la frase completa O que TODAS las palabras clave existan en el texto.
-                hasLexicalMatch = contentToSearch.includes(topicClean) || 
-                                  wordsToMatch.every(word => contentToSearch.includes(word));
-              } else {
-                // PARA FRASES LARGAS (4+ palabras): Exigimos al menos el 75% de coincidencia
-                const matchedWords = wordsToMatch.filter(word => contentToSearch.includes(word));
-                hasLexicalMatch = (matchedWords.length >= Math.ceil(wordsToMatch.length * 0.75)) || 
-                                  contentToSearch.includes(topicClean);
-              }
+          if (wordsToMatch.length > 0) {
+            if (wordsToMatch.length <= 3) {
+              // 💥 REGLA DE ORO PARA NOMBRES Y TÉRMINOS CORTOS (1 a 3 palabras):
+              hasLexicalMatch = contentToSearch.includes(topicClean) || 
+                                wordsToMatch.every(word => contentToSearch.includes(word));
             } else {
-              hasLexicalMatch = contentToSearch.includes(topicClean);
+              // PARA FRASES LARGAS (4+ palabras): Exigimos al menos el 75% de coincidencia
+              const matchedWords = wordsToMatch.filter(word => contentToSearch.includes(word));
+              hasLexicalMatch = (matchedWords.length >= Math.ceil(wordsToMatch.length * 0.75)) || 
+                                contentToSearch.includes(topicClean);
             }
+          } else {
+            hasLexicalMatch = contentToSearch.includes(topicClean);
+          }
 
+          if (hasLexicalMatch) {
             bestUnused = bestMatch;
-            
-            if (hasLexicalMatch) {
-              usedFallback = false; // Match real y verificado
-            } else {
-              usedFallback = true;  // Match indirecto, se prende el banner amarillo
-              console.warn(`⚠️ Match semántico indirecto (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". No contiene el término exacto, se marca como sugerido.`);
-            }
-          } 
-          else {
-            fallbackCategory = bestMatch.category || 'Sociedad';
+            usedFallback = false; // Match real y verificado
+          } else {
+            console.warn(`⚠️ Match semántico indirecto (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". No contiene el término exacto. Forzando fallback...`);
+            fallbackCategory = bestMatch.category || strictCategoryFilter || 'Sociedad';
             let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
             bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
             usedFallback = true;
           }
-        } else {
-          // 💥 CORREGIDO: Si no hay vectores, buscamos en Sociedad o Internacional en lugar de una categoría inexistente
-          fallbackCategory = 'Sociedad';
+        } 
+        else {
+          fallbackCategory = bestMatch.category || strictCategoryFilter || 'Sociedad';
           let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
           bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
           usedFallback = true;
-          console.warn(`⚠️ Cero resultados vectoriales para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
         }
-      } catch (error) {
-        console.error(`❌ Error en búsqueda semántica para "${trimmedTopic}":`, error);
+      } else {
+        fallbackCategory = strictCategoryFilter || 'Sociedad';
+        let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
+        bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
         usedFallback = true;
+        console.warn(`⚠️ Cero resultados vectoriales para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
       }
+    } catch (error) {
+      console.error(`❌ Error en búsqueda semántica para "${trimmedTopic}":`, error);
+      usedFallback = true;
     }
 
     // -------------------------------------------------------------
@@ -320,10 +314,9 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           importanceScore: { $gte: 40 } // Piso de calidad elevado
         };
 
-        // Si el usuario pedía fútbol, tenis o clubes, restringimos el rescate a Deportes para que no entren crímenes
-        const topicLower = normalizeText(topic);
-        if (topicLower.includes('river') || topicLower.includes('boca') || topicLower.includes('champions') || topicLower.includes('seleccion') || topicLower.includes('futbol') || topicLower.includes('tenis')) {
-          emergencyFilter.category = 'Deportes';
+        // Usamos la categoría estricta definida arriba para rescatar dentro de su misma área general
+        if (strictCategoryFilter) {
+          emergencyFilter.category = strictCategoryFilter;
         }
 
         let emergencyCandidates = await Article.find(emergencyFilter)

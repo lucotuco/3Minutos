@@ -654,7 +654,7 @@
     "category": "economy",
     "country": "pe",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "La República Política",
@@ -663,7 +663,7 @@
     "category": "politics",
     "country": "pe",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "La República Home",
@@ -672,7 +672,7 @@
     "category": "general",
     "country": "pe",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "La República Sociedad",
@@ -681,7 +681,7 @@
     "category": "society",
     "country": "pe",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "La República Deportes",
@@ -690,7 +690,7 @@
     "category": "sports",
     "country": "pe",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "La República Espectáculos",
@@ -699,7 +699,7 @@
     "category": "entertainment",
     "country": "pe",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "La República Mundo",
@@ -708,7 +708,7 @@
     "category": "world",
     "country": "pe",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "FayerWayer",
@@ -735,7 +735,7 @@
     "category": "general",
     "country": "cl",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "El País Uruguay Latest",
@@ -1005,7 +1005,7 @@
     "category": "general",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "G1 Globo Economia",
@@ -1014,7 +1014,7 @@
     "category": "economy",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "G1 Globo Política",
@@ -1023,7 +1023,7 @@
     "category": "politics",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "O Globo Home",
@@ -1032,7 +1032,7 @@
     "category": "general",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "O Globo Economia",
@@ -1041,7 +1041,7 @@
     "category": "economy",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "O Globo Esportes",
@@ -1050,7 +1050,7 @@
     "category": "sports",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Globo Esporte (GE)",
@@ -1059,7 +1059,7 @@
     "category": "sports",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Globo Esporte Futebol",
@@ -1068,7 +1068,7 @@
     "category": "sports",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Extra",
@@ -1077,7 +1077,7 @@
     "category": "general",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Extra Esporte",
@@ -1086,7 +1086,7 @@
     "category": "sports",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "JC UOL Últimas",
@@ -1095,7 +1095,7 @@
     "category": "general",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "JC UOL Economia",
@@ -1104,7 +1104,7 @@
     "category": "economy",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "JC UOL Política",
@@ -1113,7 +1113,7 @@
     "category": "politics",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Correio 24 Horas",
@@ -1122,7 +1122,7 @@
     "category": "general",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Correio 24 Horas Esportes",
@@ -1131,7 +1131,7 @@
     "category": "sports",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "A Tarde",
@@ -1140,7 +1140,7 @@
     "category": "general",
     "country": "br",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "El Observador Último Momento",
@@ -1149,7 +1149,7 @@
     "category": "general",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "El Observador Nacional",
@@ -1158,7 +1158,7 @@
     "category": "national",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "El Observador Referí",
@@ -1167,7 +1167,7 @@
     "category": "sports",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Subrayado Home",
@@ -1176,7 +1176,7 @@
     "category": "general",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Subrayado Política",
@@ -1185,7 +1185,7 @@
     "category": "politics",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Subrayado Sociedad",
@@ -1194,7 +1194,7 @@
     "category": "society",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Subrayado Deportes",
@@ -1203,7 +1203,7 @@
     "category": "sports",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Subrayado Internacionales",
@@ -1212,7 +1212,7 @@
     "category": "world",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Montevideo Portal 58",
@@ -1221,7 +1221,7 @@
     "category": "general",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Montevideo Portal 59",
@@ -1230,7 +1230,7 @@
     "category": "general",
     "country": "uy",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "El Financiero Home",
@@ -1239,7 +1239,7 @@
     "category": "economy",
     "country": "mx",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "El Financiero Economía",
@@ -1248,7 +1248,7 @@
     "category": "economy",
     "country": "mx",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "El Financiero Nacional",
@@ -1257,7 +1257,7 @@
     "category": "national",
     "country": "mx",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Reforma Portada",
@@ -1284,7 +1284,7 @@
     "category": "general",
     "country": "mx",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "The Guardian Mexico",
@@ -1293,7 +1293,7 @@
     "category": "world",
     "country": "mx",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "SDP Noticias",
@@ -1302,7 +1302,7 @@
     "category": "general",
     "country": "mx",
     "priority": 2,
-    "active": true
+    "active": false
   },
   {
     "name": "Aurpra Noticias",
