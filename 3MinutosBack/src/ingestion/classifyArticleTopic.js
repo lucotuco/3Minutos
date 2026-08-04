@@ -14,7 +14,7 @@ const ALL_OFFICIAL_TOPICS = [
   // Internacional
   'EEUU', 'Medio Oriente', 'Europa', 'América Latina', 'Conflictos', 'Geopolítica',
   // Deportes
-  'Fútbol', 'Mundial 2026', 'Básquet', 'Tenis', 'Rugby',
+  'Fútbol', 'F1', 'Básquet', 'Tenis', 'Rugby',
   // Sociedad
   'Salud', 'Bienestar', 'Clima y Ambiente', 'Historias Humanas', 'Tendencias Y Vida',
   // Tecnología
@@ -36,7 +36,7 @@ function buildPromptReglasYCategorias() {
   - Formato: {"category": "...", "topic": "..."}
   - "category" DEBE ser una de las categorías permitidas.
   - "topic" DEBE ser uno de los tópicos oficiales de la lista de arriba. Si la noticia no encaja claramente en ninguno, poné "General". NUNCA inventes un tópico que no esté en la lista.
-  - El "topic" elegido debe corresponder a la "category" asignada (ej: si la categoría es "Deportes", el topic debe ser uno deportivo como "Fútbol", "Básquet", "Tenis", "Rugby" o "Mundial 2026").`;
+  - El "topic" elegido debe corresponder a la "category" asignada (ej: si la categoría es "Deportes", el topic debe ser uno deportivo como "Fútbol", "Básquet", "Tenis", "Rugby" o "F1").`;
 }
 
 function buildPrompt(article) {
