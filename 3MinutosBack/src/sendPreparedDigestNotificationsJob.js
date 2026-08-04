@@ -61,30 +61,30 @@ async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
 
     for (const run of dueRuns) {
       try {
-        console.log(`\n📦 Procesando run ${run._id}`);
+        /*console.log(`\n📦 Procesando run ${run._id}`);
         console.log(`   userId: ${run.userId}`);
         console.log(`   deliveryDate: ${run.deliveryDate}`);
         console.log(`   deliveryTime: ${run.deliveryTime}`);
-        console.log(`   notificationSentAt: ${run.notificationSentAt}`);
+        console.log(`   notificationSentAt: ${run.notificationSentAt}`);*/
 
         const user = await UserPreference.findById(run.userId).lean();
 
         if (!user) {
-          console.log(`⚠️ Usuario no encontrado para run ${run._id}`);
+         //console.log(`⚠️ Usuario no encontrado para run ${run._id}`);
           continue;
         }
 
-        console.log(`   user.name: ${user.name}`);
+        /*console.log(`   user.name: ${user.name}`);
         console.log(`   user.isActive: ${user.isActive}`);
-        console.log(`   expoPushToken: ${user.expoPushToken}`);
+        console.log(`   expoPushToken: ${user.expoPushToken}`);*/
 
         if (!user.isActive) {
-          console.log(`⚠️ Usuario inactivo para run ${run._id}`);
+          //console.log(`⚠️ Usuario inactivo para run ${run._id}`);
           continue;
         }
 
         if (!user.expoPushToken) {
-          console.log(`⚠️ Usuario sin expoPushToken: ${user._id}`);
+          //console.log(`⚠️ Usuario sin expoPushToken: ${user._id}`);
           continue;
         }
 
@@ -100,7 +100,7 @@ async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
             ? `Ya tenés ${itemsCount} noticias nuevas en 3 Minutos.`
             : 'Ya tenés tu nuevo resumen disponible.';
 
-        console.log('   enviando push...');
+        //console.log('   enviando push...');
 
         const tickets = await sendPushNotification({
           to: user.expoPushToken,
@@ -115,18 +115,18 @@ async function sendPreparedDigestNotifications({ now = new Date() } = {}) {
           },
         });
 
-        console.log('   tickets Expo:', JSON.stringify(tickets, null, 2));
+        //console.log('   tickets Expo:', JSON.stringify(tickets, null, 2));
 
         run.notificationSentAt = new Date();
         await run.save();
 
-        console.log(`✅ Notificación enviada para run ${run._id}`);
+        //console.log(`✅ Notificación enviada para run ${run._id}`);
       } catch (error) {
-        console.error(`❌ Error enviando notificación para run ${run._id}:`, error.message);
+        //console.error(`❌ Error enviando notificación para run ${run._id}:`, error.message);
       }
     }
   } catch (error) {
-    console.error('❌ Error general en sendPreparedDigestNotifications:', error.message);
+    //console.error('❌ Error general en sendPreparedDigestNotifications:', error.message);
   } finally {
     isSendingNotifications = false;
   }
