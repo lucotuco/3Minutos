@@ -1,6 +1,6 @@
 const Article = require('../models/Article');
 const { enrichArticleRanking } = require('./articleRanking');
-const { ALL_CATEGORIES } = require('../ingestion/classifyArticleTopic');
+const { ALL_CATEGORIES, ALL_OFFICIAL_TOPICS } = require('../ingestion/classifyArticleTopic');
 const { searchArticlesBySimilarityAtlas } = require('../embeddings/searchArticlesBySimilarityAtlas');
 const { openai } = require('../config/openai');
 const { cosineSimilarity } = require('../embeddings/searchArticlesBySimilarity');
@@ -17,7 +17,7 @@ const TOPIC_TO_CATEGORY = {
   'Gobierno Nacional': 'Política', 'Justicia': 'Política', 'Elecciones': 'Política', 'Educación': 'Política', 'Seguridad': 'Política',
   'Dólar y Mercados': 'Economía', 'Inflación y Consumo': 'Economía', 'Empresas y Negocios': 'Economía', 'Inversiones': 'Economía', 'Emprendedores': 'Economía',
   'EEUU': 'Internacional', 'Medio Oriente': 'Internacional', 'Europa': 'Internacional', 'América Latina': 'Internacional', 'Conflictos': 'Internacional', 'Geopolítica': 'Internacional',
-  'Fútbol': 'Deportes', 'F1': 'Deportes', 'Básquet': 'Deportes', 'Tenis': 'Deportes', 'Rugby': 'Deportes',
+  'Fútbol': 'Deportes', 'Mundial 2026': 'Deportes', 'Básquet': 'Deportes', 'Tenis': 'Deportes', 'Rugby': 'Deportes',
   'Salud': 'Sociedad', 'Bienestar': 'Sociedad', 'Clima y Ambiente': 'Sociedad', 'Historias Humanas': 'Sociedad', 'Tendencias Y Vida': 'Sociedad',
   'Inteligencia Artificial': 'Tecnología', 'Ciencia y Espacio': 'Tecnología', 'Apps y Redes': 'Tecnología', 'Innovación': 'Tecnología', 'Videojuegos': 'Tecnología',
   'Cine y Series': 'Entretenimiento/Cultura', 'Música': 'Entretenimiento/Cultura', 'Turismo y Viajes': 'Entretenimiento/Cultura', 'Streaming': 'Entretenimiento/Cultura', 'Autos': 'Entretenimiento/Cultura', 'Viral y Trending': 'Entretenimiento/Cultura', 'Teatro y Literatura': 'Entretenimiento/Cultura',
@@ -179,7 +179,6 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
 
   const usedUrls = new Set(alreadyShownUrls);
   const usedTitles = [...alreadyShownTitles];
-  // 💥 CORREGIDO 3: Clonamos el array para ir agregando los vectores de las notas seleccionadas en el mismo resumen
   const dynamicSeenEmbeddings = [...seenEmbeddings]; 
   const results  = [];
 
@@ -210,16 +209,15 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     let fallbackCategory = null;
     let queryExpanded = null;
 
-    // 💥 NUEVO: ESTABLECEMOS EL CORRAL GEOGRÁFICO/DISCIPLINARIO
     let strictCategoryFilter = null;
     if (ALL_CATEGORIES.includes(topic)) {
-      strictCategoryFilter = topic; // Ej: Eligió "Política"
+      strictCategoryFilter = topic; 
     } else if (TOPIC_TO_CATEGORY[topic]) {
-      strictCategoryFilter = TOPIC_TO_CATEGORY[topic]; // Ej: Eligió "Básquet" -> Corral: "Deportes"
+      strictCategoryFilter = TOPIC_TO_CATEGORY[topic]; 
     }
 
     // -------------------------------------------------------------
-    // CONSULTA UNIFICADA: MOTOR HÍBRIDO (Vectores + BM25)
+    // CONSULTA UNIFICADA: MOTOR HÍBRIDO (Vectores + BM25) CON 3 ZONAS
     // -------------------------------------------------------------
     try {
       const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
@@ -230,39 +228,42 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
         minDate: getFreshnessCutoff() 
       };
 
-      // 💥 APLICAMOS EL FILTRO DURO A LA BASE DE DATOS VECTORIAL
       if (strictCategoryFilter) {
         searchOptions.category = strictCategoryFilter;
       }
 
       const semanticCandidates = await searchArticlesBySimilarityAtlas(trimmedTopic, queryForEmbedding, searchOptions);
-
       const usableSemantic = semanticCandidates.filter(a => isUsableDigestArticle(a, usedUrls, dynamicSeenEmbeddings));
 
       if (usableSemantic.length > 0) {
         const bestMatch = usableSemantic[0];
-        console.log(`🔍 [Motor Híbrido] "${trimmedTopic}" -> Match: "${bestMatch.title}" | Score: ${bestMatch.score?.toFixed(3)} | Corral: ${strictCategoryFilter || 'Libre'}`);
-        
-        if (bestMatch.score >= 0.60) {
-          // -------------------------------------------------------------
-          // ESCUDO LÉXICO STRICTO (Anti "Media Palabra")
-          // -------------------------------------------------------------
+        const score = bestMatch.score || 0;
+
+        console.log(`🔍 [Motor Híbrido] "${trimmedTopic}" -> Match: "${bestMatch.title}" | Score: ${score.toFixed(3)} | Corral: ${strictCategoryFilter || 'Libre'}`);
+
+        // 🟢 ZONA VERDE: Confianza Absoluta (Pasa directo)
+        if (score >= 0.94) {
+          console.log(`      🟢 [ZONA VERDE] Confianza absoluta. Pasa directo sin filtro léxico.`);
+          bestUnused = bestMatch;
+          usedFallback = false;
+        } 
+        // 🟡 ZONA AMARILLA: Dudoso (Filtro léxico estricto)
+        else if (score >= 0.80) {
+          console.log(`      🟡 [ZONA AMARILLA] Match dudoso. Verificando coincidencia léxica exacta...`);
+          
           const topicClean = normalizeText(trimmedTopic);
           const contentToSearch = normalizeText(
             `${bestMatch.title} ${bestMatch.rawSummary} ${bestMatch.contentSnippet} ${(bestMatch.tags || []).join(' ')}`
           );
 
-          // Filtramos palabras con 3 o más letras (para incluir siglas como AFA, FMI, YPF)
           const wordsToMatch = topicClean.split(' ').filter(w => w.length >= 3);
           let hasLexicalMatch = false;
 
           if (wordsToMatch.length > 0) {
             if (wordsToMatch.length <= 3) {
-              // 💥 REGLA DE ORO PARA NOMBRES Y TÉRMINOS CORTOS (1 a 3 palabras):
               hasLexicalMatch = contentToSearch.includes(topicClean) || 
                                 wordsToMatch.every(word => contentToSearch.includes(word));
             } else {
-              // PARA FRASES LARGAS (4+ palabras): Exigimos al menos el 75% de coincidencia
               const matchedWords = wordsToMatch.filter(word => contentToSearch.includes(word));
               hasLexicalMatch = (matchedWords.length >= Math.ceil(wordsToMatch.length * 0.75)) || 
                                 contentToSearch.includes(topicClean);
@@ -272,49 +273,45 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           }
 
           if (hasLexicalMatch) {
+            console.log(`         ✅ Léxico exitoso. Confirmado.`);
             bestUnused = bestMatch;
-            usedFallback = false; // Match real y verificado
+            usedFallback = false;
           } else {
-            console.warn(`⚠️ Match semántico indirecto (${bestMatch.score.toFixed(3)}) para "${trimmedTopic}". No contiene el término exacto. Forzando fallback...`);
-            fallbackCategory = bestMatch.category || strictCategoryFilter || 'Sociedad';
-            let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
-            bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
-            usedFallback = true;
+            console.log(`         ❌ Léxico fallido. Se rechaza la noticia para evitar falsos positivos.`);
+            bestUnused = null; 
           }
         } 
+        // 🔴 ZONA ROJA: Rechazo absoluto
         else {
-          fallbackCategory = bestMatch.category || strictCategoryFilter || 'Sociedad';
-          let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
-          bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
-          usedFallback = true;
+          console.log(`      🔴 [ZONA ROJA] Score muy bajo (${score.toFixed(3)}). Rechazo directo.`);
+          bestUnused = null;
         }
       } else {
-        fallbackCategory = strictCategoryFilter || 'Sociedad';
-        let candidates = await findCandidatesForTopic(fallbackCategory, perTopicLimit, true);
-        bestUnused = candidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
-        usedFallback = true;
-        console.warn(`⚠️ Cero resultados vectoriales para "${trimmedTopic}". Fallback a "${fallbackCategory}".`);
+        console.warn(`⚠️ Cero resultados vectoriales válidos para "${trimmedTopic}".`);
+        bestUnused = null;
       }
     } catch (error) {
       console.error(`❌ Error en búsqueda semántica para "${trimmedTopic}":`, error);
-      usedFallback = true;
+      bestUnused = null;
     }
 
     // -------------------------------------------------------------
-    // CONSULTA 4: RESCATE DE EMERGENCIA EN MONGODB
+    // DEGRADACIÓN ELEGANTE Y RESCATE SÓLO PARA TÓPICOS OFICIALES
     // -------------------------------------------------------------
     if (!bestUnused) {
-      console.log(`🚨 [RESCATE] No hubo resultados para "${topic}". Buscando reemplazo de emergencia...`);
+      const isOfficial = ALL_CATEGORIES.includes(topic) || Object.keys(TOPIC_TO_CATEGORY).includes(topic) || Object.values(TOPIC_TO_CATEGORY).includes(topic);
+
+      console.log(`🚨 [RESCATE] Buscando noticia destacada de emergencia para "${topic}"...`);
       try {
-        // 💥 CORREGIDO: Si el tema era deportivo o económico, intentamos rescatar dentro de su misma área general primero
         let emergencyFilter = {
           country: 'ar',
           publishedAt: { $gte: getFreshnessCutoff() },
           topicStatus: 'done',
-          importanceScore: { $gte: 40 } // Piso de calidad elevado
+          // Subimos el piso a 50 para asegurarnos de que la sugerencia sea realmente importante
+          importanceScore: { $gte: 50 } 
         };
 
-        // Usamos la categoría estricta definida arriba para rescatar dentro de su misma área general
+        // Si era un tópico oficial (ej. Básquet), intentamos rescatar dentro de Deportes primero
         if (strictCategoryFilter) {
           emergencyFilter.category = strictCategoryFilter;
         }
@@ -325,7 +322,7 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
           .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl embedding')
           .lean();
 
-        // Si no encontró de esa categoría específica, abrimos la búsqueda a todo el diario
+        // Si no hay de esa categoría (o si era un tema libre), abrimos el paraguas a todo el diario
         if (emergencyCandidates.length === 0 && emergencyFilter.category) {
           delete emergencyFilter.category;
           emergencyCandidates = await Article.find(emergencyFilter)
@@ -335,13 +332,19 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
             .lean();
         }
 
-        // 💥 CORREGIDO: Aplicamos enrichArticleRanking para que no devuelva puntajeNoticia: 0 en los logs
         const rankedEmergency = emergencyCandidates.map(enrichArticleRanking);
 
         bestUnused = rankedEmergency.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
+        
         if (bestUnused) {
           usedFallback = true;
           fallbackCategory = bestUnused.category || 'Sociedad';
+
+          // 💥 LA MAGIA: Si el tema era Libre, le cambiamos el nombre al Tópico
+          if (!isOfficial) {
+            topic = 'Destacado (Sugerido)';
+            console.log(`🛡️ [CONVERSIÓN DE FALLBACK] No se encontró el tema libre. Se inyectó una sugerencia y se cambió el topic a "Destacado (Sugerido)".`);
+          }
         }
       } catch (emergencyErr) {
         console.error(`❌ Error en rescate de emergencia para "${topic}":`, emergencyErr);
@@ -362,7 +365,6 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     usedUrls.add(bestUnused.url);
     usedTitles.push(bestUnused.neutralTitle || bestUnused.title || "");
     
-    // 💥 CORREGIDO 3: Guardamos el embedding de esta nota para que el próximo tema del mismo resumen no la repita
     if (Array.isArray(bestUnused.embedding) && bestUnused.embedding.length > 0) {
       dynamicSeenEmbeddings.push({
         title: bestUnused.neutralTitle || bestUnused.title || "",

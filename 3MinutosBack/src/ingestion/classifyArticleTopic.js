@@ -1,42 +1,37 @@
 const { openai } = require('../config/openai');
 
-const ALL_CATEGORIES = [
-  'Política', 'Economía', 'Internacional', 'Deportes',
-  'Sociedad', 'Tecnología', 'Entretenimiento/Cultura'
-];
+// 1. DICCIONARIO ESTRUCTURAL: Define exactamente qué tópico pertenece a qué categoría
+const CATEGORY_TOPIC_MAP = {
+  'Política': ['Gobierno Nacional', 'Justicia', 'Elecciones', 'Educación', 'Seguridad'],
+  'Economía': ['Dólar y Mercados', 'Inflación y Consumo', 'Empresas y Negocios', 'Inversiones', 'Emprendedores'],
+  'Internacional': ['EEUU', 'Medio Oriente', 'Europa', 'América Latina', 'Conflictos', 'Geopolítica'],
+  'Deportes': ['Fútbol', 'F1', 'Básquet', 'Tenis', 'Rugby'],
+  'Sociedad': ['Salud', 'Bienestar', 'Clima y Ambiente', 'Historias Humanas', 'Tendencias Y Vida'],
+  'Tecnología': ['Inteligencia Artificial', 'Ciencia y Espacio', 'Apps y Redes', 'Innovación', 'Videojuegos'],
+  'Entretenimiento/Cultura': ['Cine y Series', 'Música', 'Turismo y Viajes', 'Streaming', 'Autos', 'Viral y Trending', 'Teatro y Literatura']
+};
 
-// Lista cerrada de tópicos oficiales (debe coincidir con TOPIC_TO_CATEGORY en pickBestArticlePerTopic.js)
-const ALL_OFFICIAL_TOPICS = [
-  // Política
-  'Gobierno Nacional', 'Justicia', 'Elecciones', 'Educación', 'Seguridad',
-  // Economía
-  'Dólar y Mercados', 'Inflación y Consumo', 'Empresas y Negocios', 'Inversiones', 'Emprendedores',
-  // Internacional
-  'EEUU', 'Medio Oriente', 'Europa', 'América Latina', 'Conflictos', 'Geopolítica',
-  // Deportes
-  'Fútbol', 'F1', 'Básquet', 'Tenis', 'Rugby',
-  // Sociedad
-  'Salud', 'Bienestar', 'Clima y Ambiente', 'Historias Humanas', 'Tendencias Y Vida',
-  // Tecnología
-  'Inteligencia Artificial', 'Ciencia y Espacio', 'Apps y Redes', 'Innovación', 'Videojuegos',
-  // Entretenimiento/Cultura
-  'Cine y Series', 'Música', 'Turismo y Viajes', 'Streaming', 'Autos', 'Viral y Trending', 'Teatro y Literatura',
-];
+const ALL_CATEGORIES = Object.keys(CATEGORY_TOPIC_MAP);
+const ALL_OFFICIAL_TOPICS = Object.values(CATEGORY_TOPIC_MAP).flat();
 
 function buildPromptReglasYCategorias() {
-  return `Sos un clasificador de noticias argentinas. Tu única tarea es asignar la categoría general y el subtema oficial.
-  CATEGORÍAS PERMITIDAS (Copia exacta):
-  ${ALL_CATEGORIES.join(', ')}
+  // Construimos el mapa en texto para que la IA lo entienda
+  const jerarquiaPrompt = Object.entries(CATEGORY_TOPIC_MAP)
+    .map(([cat, tops]) => `- ${cat}: ${tops.join(', ')}`)
+    .join('\n  ');
 
-  TÓPICOS OFICIALES PERMITIDOS (Copia exacta):
-  ${ALL_OFFICIAL_TOPICS.join(', ')}
+  return `Sos un clasificador de noticias argentinas. Tu única tarea es asignar la categoría general y el subtema oficial de una noticia.
+
+  JERARQUÍA ESTRICTA PERMITIDA (Elegí solo combinaciones válidas):
+  ${jerarquiaPrompt}
 
   REGLAS ESTRICTAS:
   - Respondé ÚNICAMENTE con JSON válido. Sin texto antes ni después.
   - Formato: {"category": "...", "topic": "..."}
-  - "category" DEBE ser una de las categorías permitidas.
-  - "topic" DEBE ser uno de los tópicos oficiales de la lista de arriba. Si la noticia no encaja claramente en ninguno, poné "General". NUNCA inventes un tópico que no esté en la lista.
-  - El "topic" elegido debe corresponder a la "category" asignada (ej: si la categoría es "Deportes", el topic debe ser uno deportivo como "Fútbol", "Básquet", "Tenis", "Rugby" o "F1").`;
+  - "category" DEBE ser una de las categorías principales.
+  - "topic" DEBE pertenecer ESTRICTAMENTE a la lista de la categoría que elegiste. 
+  - Si la noticia no encaja claramente en ningún tópico de su categoría, poné "General".
+  - NUNCA inventes un tópico ni cruces un tópico de una categoría con otra.`;
 }
 
 function buildPrompt(article) {
@@ -73,12 +68,20 @@ async function classifyArticleTopic(article = {}) {
     throw new Error(`Classifier returned invalid JSON: ${raw}`);
   }
 
-  // Validamos que la categoría sea oficial, si alucina cae a Sociedad
+  // 1. Validación de Categoría: Si la IA inventa una, forzamos a "Sociedad"
   const category = ALL_CATEGORIES.includes(parsed.category) ? parsed.category : 'Sociedad';
 
-  // Validamos que el tópico sea oficial, si alucina o no encaja cae a General
-  const rawTopic = String(parsed.topic || 'General').trim();
-  const topic = ALL_OFFICIAL_TOPICS.includes(rawTopic) ? rawTopic : 'General';
+  // 2. Validación de Tópico (Filtro JS): Extraemos lo que devolvió la IA
+  let topic = String(parsed.topic || 'General').trim();
+
+  // 3. EL FILTRO INTELIGENTE JAVASCRIPT:
+  // Verificamos si el tópico que eligió la IA realmente le pertenece a la categoría final
+  const validTopicsForCategory = CATEGORY_TOPIC_MAP[category] || [];
+  
+  if (!validTopicsForCategory.includes(topic) && topic !== 'General') {
+    console.warn(`⚠️ [Filtro JS] La IA intentó asignar el tópico "${topic}" a la categoría "${category}". Forzando a "General".`);
+    topic = 'General';
+  }
 
   return { category, topic };
 }
