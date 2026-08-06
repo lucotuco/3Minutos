@@ -46,11 +46,16 @@ async function expandTopicForEmbedding(rawTopic) {
       messages: [
         {
           role: 'system',
-          content: `Sos un motor de expansión de búsqueda para una base de datos vectorial periodística del año ${currentYear}.REGLA SUPREMA: El string que devuelvas DEBE EMPEZAR OBLIGATORIAMENTE con las palabras exactas que escribió el usuario, seguidas de 4 o 5 palabras clave que agreguen contexto o entidades relacionadas. NUNCA reemplaces ni elimines la palabra original. REGLA ANTI-RUIDO: NO agregues palabras genéricas como "historia", "rivalidades", "equipo", "deportivo". Si el usuario pide "leonas", "pumas", "maravillas", asumilos SIEMPRE como selecciones nacionales argentinas de deporte. Devolvé ÚNICAMENTE la cadena en minúsculas sin puntuación.`
+          content: `Sos un experto en expansión de consultas para un motor de búsqueda vectorial periodístico (${currentYear}).
+REGLA 1: Tu respuesta DEBE EMPEZAR con las palabras exactas del usuario. NUNCA las elimines ni las modifiques.
+REGLA 2: Agregá de 4 a 6 palabras que sean EXCLUSIVAMENTE jerga hiper-técnica, siglas de organizaciones rectoras, elementos físicos únicos del rubro o terminología ultra específica.
+REGLA 3: PROHIBICIÓN ABSOLUTA de usar palabras genéricas, ambiguas o compartidas entre disciplinas. ESTÁ ESTRICTAMENTE PROHIBIDO incluir en tu respuesta: mundial, torneo, campeonato, competencia, seleccion, nacional, internacional, jugadores, equipo, deporte, historia, actualidad, destacados, eventos, producciones, plataformas.
+REGLA 4: El objetivo es aislar semánticamente el tema para que no se confunda con otros. Si es un seleccionado (ej: leonas, pumas) inyectá la jerga de su deporte específico.
+Devolvé ÚNICAMENTE una sola línea de texto en minúsculas, sin comas ni signos de puntuación.`
         },
         { role: 'user', content: topic }
       ],
-      temperature: 0,
+      temperature: 0, // Temperatura 0 para que sea analítico y no creativo
       max_tokens: 25,
     });
 
@@ -59,7 +64,7 @@ async function expandTopicForEmbedding(rawTopic) {
     return expanded;
   } catch (error) {
     console.warn(`⚠️ Falló expansión IA para "${topic}", usando original:`, error.message);
-    return `${topic} noticias actualidad Argentina`;
+    return topic; // Si falla, devolvemos el tópico limpio, sin agregar basura genérica.
   }
 }
 
