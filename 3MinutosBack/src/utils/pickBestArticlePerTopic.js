@@ -304,55 +304,42 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     // DEGRADACIÓN ELEGANTE Y RESCATE SÓLO PARA TÓPICOS OFICIALES
     // -------------------------------------------------------------
     if (!bestUnused) {
-      const isOfficial = ALL_CATEGORIES.includes(topic) || Object.keys(TOPIC_TO_CATEGORY).includes(topic) || Object.values(TOPIC_TO_CATEGORY).includes(topic);
-
-      console.log(`🚨 [RESCATE] Buscando noticia destacada de emergencia para "${topic}"...`);
+      console.log(`🚨 [RESCATE] No hubo resultados para "${topic}". Activando rescate híbrido enfocado en Argentina...`);
       try {
-        let emergencyFilter = {
-          country: 'ar',
-          publishedAt: { $gte: getFreshnessCutoff() },
-          topicStatus: 'done',
-          // Subimos el piso a 50 para asegurarnos de que la sugerencia sea realmente importante
-          importanceScore: { $gte: 50 } 
+        const emergencyCategory = fallbackCategory || strictCategoryFilter || 'Sociedad';
+        
+        // 💥 EL ANCLA GEOGRÁFICA: Forzamos al motor a buscar contexto argentino
+        const emergencyQuery = `${emergencyCategory} Argentina actualidad nacional`;
+        
+        const emergencySearchOptions = { 
+          limit: perTopicLimit * 3,
+          minDate: getFreshnessCutoff(),
+          category: emergencyCategory
         };
 
-        // Si era un tópico oficial (ej. Básquet), intentamos rescatar dentro de Deportes primero
-        if (strictCategoryFilter) {
-          emergencyFilter.category = strictCategoryFilter;
+        // Si el usuario pedía deportes, mantenemos el corral estricto
+        const topicLower = normalizeText(topic);
+        if (topicLower.includes('river') || topicLower.includes('boca') || topicLower.includes('champions') || topicLower.includes('seleccion') || topicLower.includes('futbol') || topicLower.includes('tenis')) {
+          emergencySearchOptions.category = 'Deportes';
         }
 
-        let emergencyCandidates = await Article.find(emergencyFilter)
-          .sort({ importanceScore: -1, publishedAt: -1 })
-          .limit(perTopicLimit * 3)
-          .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl embedding')
-          .lean();
+        // 💥 Llamamos al poderoso motor híbrido en lugar de un find() ciego
+        const emergencyCandidates = await searchArticlesBySimilarityAtlas(
+          emergencyQuery, 
+          emergencyQuery, 
+          emergencySearchOptions
+        );
 
-        // Si no hay de esa categoría (o si era un tema libre), abrimos el paraguas a todo el diario
-        if (emergencyCandidates.length === 0 && emergencyFilter.category) {
-          delete emergencyFilter.category;
-          emergencyCandidates = await Article.find(emergencyFilter)
-            .sort({ importanceScore: -1, publishedAt: -1 })
-            .limit(perTopicLimit * 3)
-            .select('_id title url sourceName section region tags category topic importanceScore publishedAt neutralTitle neutralLead neutralSummary neutralityScore politicalBiasRisk curationStatus rawSummary contentSnippet imageUrl embedding')
-            .lean();
-        }
-
-        const rankedEmergency = emergencyCandidates.map(enrichArticleRanking);
-
-        bestUnused = rankedEmergency.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
+        // Los candidatos ya vienen rankeados y normalizados. Solo buscamos el primero que no hayamos usado.
+        bestUnused = emergencyCandidates.find((article) => isUsableDigestArticle(article, usedUrls, dynamicSeenEmbeddings));
         
         if (bestUnused) {
           usedFallback = true;
-          fallbackCategory = bestUnused.category || 'Sociedad';
-
-          // 💥 LA MAGIA: Si el tema era Libre, le cambiamos el nombre al Tópico
-          if (!isOfficial) {
-            topic = 'Destacado (Sugerido)';
-            console.log(`🛡️ [CONVERSIÓN DE FALLBACK] No se encontró el tema libre. Se inyectó una sugerencia y se cambió el topic a "Destacado (Sugerido)".`);
-          }
+          fallbackCategory = bestUnused.category || emergencyCategory;
+          console.log(`   🆘 [RESCATE EXITOSO] Entregado: "${bestUnused.title}"`);
         }
       } catch (emergencyErr) {
-        console.error(`❌ Error en rescate de emergencia para "${topic}":`, emergencyErr);
+        console.error(`❌ Error en rescate de emergencia híbrido para "${topic}":`, emergencyErr);
       }
     }
 

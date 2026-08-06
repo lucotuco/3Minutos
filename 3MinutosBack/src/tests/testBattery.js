@@ -11,53 +11,61 @@ async function connectDB() {
 // 🪤 PERFILES TRAMPA: Diseñados para forzar al sistema a cometer errores de duplicación
 const TEST_PROFILES = [
   {
-    name: 'Perfil 22: Oficiales Core (Economía y Política)',
-    topics: ["Gobierno Nacional", "Inflación y Consumo", "Dólar y Mercados"] 
+    name: '🏀 Perfil 1: Aislamiento Deportivo (Anti-FIFA)',
+    topics: ['básquet', 'tenis', 'los pumas'],
   },
-  // 🟢 2. 100% Oficiales - Deportes (Para probar que respeta el corral de categoría)
+
+  // ============================================================================
+  // 🎬 GRUPO 2: ENTRETENIMIENTO PURO (Sin relleno genérico)
+  // ============================================================================
+  // Desafío: "Cine y Series" antes expandía a "producciones plataformas". 
+  // Ahora debería tirar cosas como "hollywood oscars taquilla rodajes guiones".
+  // "Música" debería ir a "recitales shows discograficas grammys".
   {
-    name: 'Perfil 23: Oficiales Deportivos',
-    topics: ["Fútbol", "Básquet", "Tenis"] 
+    name: '🎬 Perfil 2: Nicho de Entretenimiento',
+    topics: ['cine y series', 'música', 'streaming'],
   },
-  // 🟡 3. Mix (2 Oficiales / 1 Libre Popular) - El libre suele tener cobertura, pero no está en la lista oficial
+
+  // ============================================================================
+  // 💻 GRUPO 3: TECNOLOGÍA DURA (Anti "Innovación")
+  // ============================================================================
+  // Desafío: Antes "Inteligencia Artificial" tiraba "avances tecnológicos". 
+  // Ahora lo obligamos a ir a "algoritmos machine learning redes neuronales llm".
+  // "Videojuegos" debería ir a "consolas fps rpg joysticks".
   {
-    name: 'Perfil 24: Mix Cultural y Pop',
-    topics: ["Cine y Series", "Música", "Taylor Swift"] 
+    name: '💻 Perfil 3: Tech y Código Duro',
+    topics: ['inteligencia artificial', 'videojuegos', 'apps y redes'],
   },
-  // 🟡 4. Mix (1 Oficial / 2 Libres Tecnológicos) - Evaluando sub-nichos técnicos
+
+  // ============================================================================
+  // 💸 GRUPO 4: ECOSISTEMA FINANCIERO (Bolsillo vs Corporativo)
+  // ============================================================================
+  // Desafío: Forzar a la IA a buscar la jerga de los que fundan empresas 
+  // ("startups venture capital rondas semilla") vs. la timba ("merval bonos cedears").
   {
-    name: 'Perfil 25: Mix Tech y Nicho',
-    topics: ["Innovación", "Criptomonedas", "Baterías Solares"] 
+    name: '💸 Perfil 4: Finanzas y Startups',
+    topics: ['emprendedores', 'inversiones', 'dólar y mercados'],
   },
-  // 🔴 5. 100% Libres - Nicho Extremo (Debería forzar el fallback y la etiqueta "Sugerido")
+
+  // ============================================================================
+  // ⚔️ GRUPO 5: GEOPOLÍTICA Y POLÍTICA LOCAL (Sin "Historia" ni "Actualidad")
+  // ============================================================================
+  // Desafío: Ver cómo aísla el conflicto de "Medio Oriente" (debería tirar 
+  // "franja gaza hezbola misiles") y cómo maneja las instituciones argentinas.
   {
-    name: 'Perfil 26: Libres de Nicho Extremo (Forzar Fallback)',
-    topics: ["Recetas sin TACC", "Ajedrez Ruso", "Vida en Marte"] 
+    name: '⚔️ Perfil 5: Geopolítica y Estado',
+    topics: ['medio oriente', 'justicia', 'gobierno nacional'],
   },
-  // 🔴 6. 100% Libres - Trampa Semántica (Palabras oficiales mezcladas con conceptos raros)
+
+  // ============================================================================
+  // 🔀 GRUPO 6: NOMBRES PROPIOS CORTOS (El test del Escudo Léxico)
+  // ============================================================================
+  // Desafío: Nombres de 1 sola palabra. La IA tiene que agregarles el contexto 
+  // técnico correcto. "Boca" (xeneize riquelme bombonera) y "Milei" (lla dnu veto).
+  // Y el escudo léxico de BM25 debe exigir que el texto los nombre explícitamente.
   {
-    name: 'Perfil 27: Trampas Semánticas Libres',
-    topics: ["Cine Mudo", "Fútbol de Mesa", "Autos Voladores"] 
-  },
-  // 🟢 7. 100% Oficiales - Baja cobertura (Debería encontrar, pero con esfuerzo)
-  {
-    name: 'Perfil 28: Oficiales de Menor Frecuencia',
-    topics: ["Rugby", "Educación", "Ciencia y Espacio"] 
-  },
-  // 🟡 8. Mix Internacional (2 Oficiales / 1 Libre alarmista) - Para evaluar la neutralidad y el riesgo político
-  {
-    name: 'Perfil 29: Internacional y Riesgo',
-    topics: ["Medio Oriente", "Conflictos", "Tercera Guerra Mundial"] 
-  },
-  // 🔴 9. 100% Libres - Conceptos abstractos y filosóficos (Para estresar el modelo de Embeddings)
-  {
-    name: 'Perfil 30: Conceptos Abstractos Libres',
-    topics: ["Estoicismo Moderno", "Paz Interior", "Física Cuántica"] 
-  },
-  // 🟡 10. Superposición Híbrida (Temas casi idénticos pero 1 es oficial y 2 libres)
-  {
-    name: 'Perfil 31: Superposición Climática',
-    topics: ["Clima y Ambiente", "Huracanes en Miami", "Ecología"] 
+    name: '🔀 Perfil 6: Nombres Cortos y Ambiguos',
+    topics: ['boca', 'milei', 'ceuta'],
   }
 ];
 
