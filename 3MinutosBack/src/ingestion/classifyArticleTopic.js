@@ -48,14 +48,11 @@ async function classifyArticleTopic(article = {}) {
   const title = String(article.title || '').trim();
   if (!title) throw new Error('Missing article title for classification');
 
-  const prompt = buildPrompt(article);
-  const promptDeReglasYCategorias = buildPromptReglasYCategorias();
-
   const response = await openai.chat.completions.create({
     model: 'gpt-4o-mini',
     messages: [
-      { role: 'system', content: promptDeReglasYCategorias },
-      { role: 'user', content: prompt }
+      { role: 'system', content: buildPromptReglasYCategorias() },
+      { role: 'user', content: buildPrompt(article) }
     ],
     temperature: 0,
     max_tokens: 80,
@@ -71,10 +68,9 @@ async function classifyArticleTopic(article = {}) {
     throw new Error(`Classifier returned invalid JSON: ${raw}`);
   }
 
-  // Validamos la categoría. Si alucina la categoría padre, va a Sociedad
   const category = ALL_CATEGORIES.includes(parsed.category) ? parsed.category : 'Sociedad';
   const topic = String(parsed.topic || 'General').trim();
-  const geoScope = String(parsed.geoScope || 'Global').trim();
+  const geoScope = String(parsed.geoScope || 'Global').trim(); // 💥 Declarado correctamente
 
   return { category, topic, geoScope };
 }
