@@ -36,6 +36,7 @@ async function saveNormalizedArticle(article = {}) {
     await Article.findByIdAndUpdate(created._id, {
       category,
       topic,
+      geoScope,
       topicStatus:        'done',
       topicGeneratedAt:   new Date(),
       topicModel:         'gpt-4o-mini',

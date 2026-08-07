@@ -35,6 +35,10 @@ const articleSchema = new mongoose.Schema(
       type: String,
       default: 'general',
     },
+    geoScope: { 
+      type: String, 
+      default: 'Global' 
+    },
     section: {
       type: String,
       default: 'general',
