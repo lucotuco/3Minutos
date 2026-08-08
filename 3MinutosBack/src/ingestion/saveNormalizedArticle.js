@@ -31,7 +31,7 @@ async function saveNormalizedArticle(article = {}) {
 
   // Clasificación temática fija (nuevo)
   try {
-    const { category, topic } = await classifyArticleTopic(created);
+    const { category, topic, geoScope } = await classifyArticleTopic(created);
 
     await Article.findByIdAndUpdate(created._id, {
       category,
