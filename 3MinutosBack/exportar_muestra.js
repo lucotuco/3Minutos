@@ -12,9 +12,9 @@ async function exportarMuestra() {
     const dosDiasAtras = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
 
     const articulos = await Article.find({ publishedAt: { $gte: dosDiasAtras } })
-      .select('title sourceName country category topic tags importanceScore publishedAt')
+      .select('title sourceName country category topic tags importanceScore publishedAt geoScope topicStatus topicError ')
       .sort({ createdAt: -1 })
-      .limit(1000)
+      .limit(5000)
       .lean();
 
     fs.writeFileSync('muestra_auditoria.json', JSON.stringify(articulos, null, 2));
