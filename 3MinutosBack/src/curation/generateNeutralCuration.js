@@ -273,65 +273,59 @@ async function generateNeutralCuration(articleId, options = {}) {
             '- No uses "Presidente" solo si eso deja ambiguo de qué presidente se habla.\n\n' +
             'Verbos a evitar: destrozó, fulminó, arrasó, humilló, golpeó, festejó, cruzó fuerte, escándalo, bomba, crisis, feroz, durísimo, desafía, redobla, embiste, apuntó contra.\n' +
             'Verbos recomendados: dijo, afirmó, cuestionó, aprobó, rechazó, anunció, informó, presentó, resolvió, anticipó, señaló, advirtió, viaja, busca, prevé, analiza, impulsa.\n\n' +
-            'Campos a devolver:\n' +
-            '1. neutralTitle:\n' +
+            'Campos a devolver (DEBEN SER GENERADOS EN ESTE ORDEN EXACTO):\n' +
+            
+            '1. politicalBiasRisk:\n' +
+            '- Evaluá el riesgo político/sensible del TEMA y del TEXTO ORIGINAL, no del texto generado.\n' +
+            '- low: tema poco político o texto fuente con baja carga editorial.\n' +
+            '- medium: tema político/económico sensible, pero con framing manejable.\n' +
+            '- high: tema polarizante, actores políticos centrales, acusaciones, conflicto institucional o fuente con framing fuerte o de opinión.\n\n' +
+
+            '2. biasAnalysis:\n' +
+            '- SI Y SOLO SI el "politicalBiasRisk" es "high" o "medium", escribí una oración breve analizando qué palabras o enfoques del texto original son tendenciosos y explicá cómo vas a neutralizarlos en el título y resumen. \n' +
+            '- Si el riesgo es "low", dejalo vacío ("").\n\n' +
+
+            '3. neutralTitle:\n' +
+            '- Debe cumplir estrictamente con las correcciones de tu biasAnalysis.\n' +
             '- 5 a 9 palabras.\n' +
             '- Máximo 62 caracteres.\n' +
             '- Debe sonar como título de app mobile.\n' +
             '- Corto, informativo y atractivo sin clickbait.\n' +
-            '- Sin opinión.\n' +
-            '- Sin adjetivos cargados.\n' +
+            '- Sin opinión ni adjetivos cargados.\n' +
             '- No uses dos puntos salvo que sea imprescindible.\n' +
             '- Debe invitar a leer porque el resumen estará oculto.\n' +
             '- Puede usar nombres propios si aportan claridad.\n' +
-            '- No uses frases genéricas que dejen dudas, por ejemplo "Presidente viaja..." si se puede decir "Milei viaja...".\n' +
-            '- Ejemplo malo: "Presidente viaja a Los Ángeles por inversiones".\n' +
-            '- Ejemplo bueno: "Milei viaja a Los Ángeles por inversiones".\n' +
+            '- No uses frases genéricas que dejen dudas (Ej. Mal: "Presidente viaja..." / Ej. Bien: "Milei viaja...").\n' +
             '- Ejemplo malo: "Rechazo de saludo entre delegados de Israel y Palestina".\n' +
-            '- Ejemplo bueno: "Delegado palestino rechazó saludar a israelí".\n' +
-            '- Ejemplo malo: "Secretario del Tesoro prevé baja del petróleo tras conflicto".\n' +
-            '- Ejemplo bueno: "EE.UU. prevé una baja del petróleo".\n\n' +
-            '2. neutralLead:\n' +
+            '- Ejemplo bueno: "Delegado palestino rechazó saludar a israelí".\n\n' +
+
+            '4. neutralLead:\n' +
             '- Copete de 1 sola oración.\n' +
             '- Máximo 16 palabras.\n' +
             '- Debe sumar contexto sin repetir el título.\n' +
-            '- Debe ser neutral.\n' +
-            '- Debe sonar natural.\n' +
+            '- Debe ser 100% neutral y natural.\n' +
             '- No menciones la fuente.\n' +
             '- Sin frases vagas como "crecen las críticas", "aumenta la tensión" o "se profundiza la crisis" salvo que el artículo lo pruebe claramente.\n' +
             '- Si hay una afirmación sensible, atribuí quién la dijo, no qué medio la publicó.\n\n' +
-            '3. neutralSummary:\n' +
+
+            '5. neutralSummary:\n' +
             '- 2 a 3 oraciones.\n' +
             '- Máximo 60 palabras.\n' +
-            '- Claro, concreto y completo.\n' +
-            '- Neutral.\n' +
-            '- Debe explicar el hecho principal y el contexto mínimo.\n' +
-            '- No debe tener tinte político ni editorializante.\n' +
+            '- Claro, concreto, completo y absolutamente neutral.\n' +
+            '- Debe explicar el hecho principal y el contexto mínimo sin tinte editorializante.\n' +
             '- No debe repetir innecesariamente el título y el copete.\n' +
-            '- No menciones la fuente.\n' +
-            '- No uses "según el medio", "la nota", "la crónica" ni similares.\n' +
+            '- No menciones la fuente ni uses "según el medio", "la nota", "la crónica" ni similares.\n' +
             '- Debe leerse como una noticia breve final de 3 Minutos.\n\n' +
-            '4. neutralityScore:\n' +
+
+            '6. neutralityScore:\n' +
             '- 0 a 100.\n' +
-            '- Evaluá SOLO la neutralidad del texto que vos generaste: neutralTitle, neutralLead y neutralSummary.\n' +
-            '- NO castigues el score solo porque el tema sea político, polémico o sensible.\n' +
-            '- Si el texto final está escrito de forma neutral, el score debe ser 80 o más aunque el tema sea políticamente riesgoso.\n' +
+            '- Evaluá SOLO la neutralidad del texto que vos generaste (neutralTitle, neutralLead y neutralSummary).\n' +
+            '- NO castigues el score solo porque el tema sea político. Si el texto final es neutral, el score debe ser 80 o más.\n' +
             '- Usá 90 a 100 si el texto final es informativo, claro y sin carga editorial.\n' +
             '- Usá 75 a 89 si el texto final es neutral pero el tema requiere atribuciones delicadas.\n' +
-            '- Usá 50 a 74 si quedó alguna frase vaga, poco atribuida o con posible framing.\n' +
-            '- Usá menos de 50 solo si el texto generado conserva sesgo, opinión, acusaciones no atribuidas o lenguaje cargado.\n' +
-            '- Si mencionás la fuente o usás "según el medio", el score debe ser menor a 70.\n\n' +
-            '5. politicalBiasRisk:\n' +
-            '- Evaluá el riesgo político/sensible del TEMA y del TEXTO ORIGINAL, no del texto generado.\n' +
-            '- low: tema poco político o texto fuente con baja carga editorial.\n' +
-            '- medium: tema político/económico sensible, pero con framing manejable.\n' +
-            '- high: tema polarizante, actores políticos centrales, acusaciones, conflicto institucional o fuente con framing fuerte.\n' +
-            '- Si el artículo es de opinión o tiene framing editorial fuerte, el riesgo debe ser high.\n\n' +
-            'Regla clave:\n' +
-            '- neutralityScore y politicalBiasRisk miden cosas distintas.\n' +
-            '- Ejemplo correcto: una noticia sobre Trump puede tener politicalBiasRisk: "high" y neutralityScore: 88 si el texto final quedó neutral.\n' +
-            '- Ejemplo incorrecto: poner neutralityScore: 45 solo porque el tema es político.\n' +
-            '- El texto final nunca debe nombrar el medio del que sale la información.',
+            '- Usá 50 a 74 si quedó alguna frase vaga o con posible framing.\n' +
+            '- Usá menos de 50 solo si el texto generado conserva sesgo.\n' +
+            '- Si mencionás la fuente o usás "según el medio", el score debe ser menor a 70.',
         },
         {
           role: 'user',

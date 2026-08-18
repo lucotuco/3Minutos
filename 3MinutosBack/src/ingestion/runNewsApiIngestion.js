@@ -92,29 +92,51 @@ async function filterExistingArticles(articles = []) {
   }
 
   const uniqueArticlesMap = new Map();
+  const urls = [];
+  const titles = [];
 
   for (const article of articles) {
     if (!article?.url) continue;
+    
+    // Evitamos procesar dos veces la misma URL en el mismo lote
     if (!uniqueArticlesMap.has(article.url)) {
       uniqueArticlesMap.set(article.url, article);
+      urls.push(article.url);
+      if (article.title) titles.push(article.title.trim());
     }
   }
 
-  const uniqueArticles = Array.from(uniqueArticlesMap.values());
-  const urls = uniqueArticles.map((article) => article.url);
+  // ⏱️ Límite de tiempo: solo buscamos títulos duplicados en los últimos 3 días 
+  // para que la consulta a MongoDB sea rapidísima y no afecte el rendimiento.
+  const limiteDias = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
+  // 💥 LA MAGIA: Buscamos si ya existe la URL o el Título en la base de datos
   const existingArticles = await Article.find({
-    url: { $in: urls },
-  }).select('url');
+    $or: [
+      { url: { $in: urls } },
+      { 
+        title: { $in: titles }, 
+        createdAt: { $gte: limiteDias } 
+      }
+    ]
+  }).select('url title');
 
+  // Creamos Sets para búsquedas ultrarrápidas en memoria
   const existingUrls = new Set(existingArticles.map((article) => article.url));
+  const existingTitles = new Set(existingArticles.map((article) => article.title?.trim()));
 
   const newArticles = [];
   const duplicateArticles = [];
 
-  for (const article of uniqueArticles) {
-    if (existingUrls.has(article.url)) duplicateArticles.push(article);
-    else newArticles.push(article);
+  for (const article of uniqueArticlesMap.values()) {
+    const titleTrimmed = article.title?.trim();
+    
+    // 🛡️ BARRERA: Si la URL ya existe O el Título ya existe, es un duplicado de agencia
+    if (existingUrls.has(article.url) || (titleTrimmed && existingTitles.has(titleTrimmed))) {
+      duplicateArticles.push(article);
+    } else {
+      newArticles.push(article);
+    }
   }
 
   return {
