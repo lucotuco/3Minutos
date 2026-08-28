@@ -193,6 +193,10 @@ const articleSchema = new mongoose.Schema(
       default: 'unknown',
       index: true,
     },
+    biasAnalysis: {
+      type: String,
+      default: '',
+    },
     curationStatus: {
       type: String,
       enum: ['pending', 'done', 'error'],

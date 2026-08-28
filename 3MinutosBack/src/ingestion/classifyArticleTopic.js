@@ -35,10 +35,11 @@ ${buildCategoryListText()}
 REGLAS ESTRICTAS:
 1. Respondé ÚNICAMENTE con JSON válido. Formato: {"category": "...", "topic": "...", "geoScope": "..."}
 2. "category": DEBE ser una de las Categorías de la lista.
-3. "topic": DEBE pertenecer a la lista de Subtemas de LA MISMA "category" que elegiste. PROHIBIDO devolver un subtema que pertenezca a otra categoría (ej: si category="Entretenimiento/Cultura", topic NO puede ser "Fútbol" ni "Justicia", esos son de otras categorías).
-4. ANTES de crear una etiqueta libre, revisá si el concepto ya está cubierto por un Subtema Oficial aunque uses otras palabras (ej: "libros", "novelas" o "obras de teatro" → usá el oficial "Teatro y Literatura", NO crees "Literatura" como etiqueta nueva).
-5. REGLA DE ESCAPE: Solo si la noticia NO encaja en NINGÚN subtema oficial de su categoría (ej: Béisbol, Natación, un accidente de tránsito local), creá una etiqueta libre y precisa de 1 a 3 palabras. Esa etiqueta libre igual tiene que pertenecer conceptualmente a la "category" elegida.
-6. "geoScope": El país principal donde ocurren los hechos (ej: "Argentina", "México", "España", "Estados Unidos"). Usá "Global" ÚNICAMENTE si afecta a todo el mundo por igual.`;
+3. "topic": DEBE pertenecer a la lista de Subtemas de LA MISMA "category" que elegiste. PROHIBIDO devolver un subtema que pertenezca a otra categoría.
+4. ANTES de crear una etiqueta libre, revisá si el concepto ya está cubierto por un Subtema Oficial.
+5. REGLA DE ESCAPE: Solo si la noticia NO encaja en NINGÚN subtema oficial de su categoría, creá una etiqueta libre y precisa de 1 a 3 palabras.
+6. "geoScope": El país principal donde ocurren los hechos (ej: "Argentina", "México", "España", "Estados Unidos"). Usá "Global" ÚNICAMENTE si afecta a todo el mundo por igual.
+7. 🌍 REGLA GEOGRÁFICA ESTRICTA: Las categorías "Política" (Gobierno Nacional, Justicia, Elecciones) y "Economía" son EXCLUSIVAS para Argentina. Si la noticia ocurre en OTRO PAÍS (ej: España, Perú, Brasil), ESTÁ PROHIBIDO usar Política o Economía. DEBE ir OBLIGATORIAMENTE a "Internacional" (usando subtemas como "América Latina", "Europa", "EEUU" o "Geopolítica").`;
 }
 
 function buildPrompt(article) {
@@ -94,7 +95,22 @@ async function classifyArticleTopic(article = {}) {
   if (TOPIC_TO_CATEGORY[topic]) {
     category = TOPIC_TO_CATEGORY[topic];
   } else {
-    topic = normalizeFreeTopic(topic); // solo normalizamos las etiquetas libres del Valve
+    topic = normalizeFreeTopic(topic);
+  }
+  const isForeign = geoScope !== 'Argentina' && geoScope !== 'Global';
+  const domesticCategories = ['Política', 'Economía'];
+  
+  if (isForeign && domesticCategories.includes(category)) {
+    console.log(`🌍 [Fuga Geográfica Bloqueada] Re-enrutando noticia de ${geoScope} ("${topic}") a Internacional.`);
+    category = 'Internacional';
+    
+    const latamCountries = ['Brasil', 'Chile', 'Uruguay', 'Perú', 'Colombia', 'México', 'Venezuela', 'Bolivia', 'Paraguay', 'Ecuador'];
+    const europeCountries = ['España', 'Francia', 'Italia', 'Reino Unido', 'Alemania', 'Rusia', 'Ucrania'];
+    
+    if (latamCountries.includes(geoScope)) topic = 'América Latina';
+    else if (europeCountries.includes(geoScope)) topic = 'Europa';
+    else if (geoScope === 'Estados Unidos') topic = 'EEUU';
+    else topic = 'Geopolítica';
   }
 
   return { category, topic, geoScope };

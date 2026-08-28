@@ -90,6 +90,7 @@ async function saveNormalizedArticle(article = {}) {
     topicModel: 'gpt-4o-mini',
     
     curationStatus: article.curationStatus || 'pending',
+    biasAnalysis: article.biasAnalysis || '',
     neutralTitle: article.neutralTitle || '',
     neutralLead: article.neutralLead || '',
     neutralSummary: article.neutralSummary || '',

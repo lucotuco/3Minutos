@@ -10,6 +10,8 @@ const { processArticle } = require('./processArticle');
 const { saveNormalizedArticle } = require('./saveNormalizedArticle');
 const { reviewArticlesWithAIBatch } = require('./reviewArticlesWithAIBatch');
 
+const PostlightParser = require('@postlight/parser');
+
 dotenv.config();
 
 const FALLBACK_IMAGE_URL = 'https://st2.depositphotos.com/1036149/5381/i/950/depositphotos_53811511-stock-illustration-duck-with-sunglasses.jpg';
@@ -166,14 +168,44 @@ async function runRssIngestion() {
           try {
             const adapted = adaptRssArticle(item, source);
 
-            // NUEVA LÓGICA: Detectar si es la imagen de fallback o un logo de Aurora
             const isFallbackImage = adapted.imageUrl === FALLBACK_IMAGE_URL;
             const isAuroraLogo = adapted.imageUrl && adapted.imageUrl.includes('LOGO-AURORA');
 
-            // Filtrar artículos inválidos
             if (isFallbackImage || isAuroraLogo) {
               console.log(`🦆 Noticia descartada por no tener imagen válida: ${adapted.title}`);
-              continue; // Salta a la siguiente noticia, no la guarda en la BD
+              continue; 
+            }
+
+            let contentText = String(adapted.rawSummary || adapted.contentSnippet || '').trim();
+
+            if (contentText.length < 250) {
+              console.log(`🛟 Rescatando nota corta de ${source.name} (${contentText.length} chars)...`);
+              
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              try {
+                const parsed = await PostlightParser.parse(adapted.url, {
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  }
+                });
+
+                const cleanExtracted = parsed.content 
+                  ? parsed.content.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() 
+                  : '';
+
+                if (cleanExtracted.length >= 250) {
+                  adapted.rawSummary = cleanExtracted;
+                  adapted.contentSnippet = cleanExtracted;
+                  console.log(`   ✅ Rescate exitoso: ${cleanExtracted.length} chars recuperados.`);
+                } else {
+                  console.log(`   ❌ Descartada: La nota extraída tiene solo ${cleanExtracted.length} chars.`);
+                  continue; 
+                }
+              } catch (parseError) {
+                console.log(`   ❌ Falló el rescate de Postlight: ${parseError.message}`);
+                continue; 
+              }
             }
 
             const processed = processArticle(adapted, {

@@ -8,11 +8,12 @@ const { startTimer } = require('../utils/timing');
 // 🛡️ MODIFICACIÓN 1: Relajamos los límites máximos para evitar que Zod falle
 // al traducir desde el portugués y termine ejecutando el fallback crudo.
 const NeutralCurationSchema = z.object({
-  neutralTitle: z.string().min(5).max(90),
-  neutralLead: z.string().min(10).max(160),
-  neutralSummary: z.string().min(20).max(500),
-  neutralityScore: z.number().min(0).max(100),
   politicalBiasRisk: z.enum(['low', 'medium', 'high']),
+  biasAnalysis: z.string(),
+  neutralTitle: z.string().min(5).max(100),
+  neutralLead: z.string().min(10).max(200),
+  neutralSummary: z.string().min(20).max(600),
+  neutralityScore: z.number().min(0).max(100),
 });
 
 const FORBIDDEN_SOURCE_PHRASES = [
@@ -149,6 +150,7 @@ async function saveFallbackCuration(article, errorMessage = '') {
   article.neutralSummary = fallbackSummary;
   article.neutralityScore = 50;
   article.politicalBiasRisk = 'unknown';
+  article.biasAnalysis = '';
   article.curationStatus = 'error';
   article.curationGeneratedAt = new Date();
   article.curationError = errorMessage || 'Neutral curation failed';
@@ -372,6 +374,7 @@ async function generateNeutralCuration(articleId, options = {}) {
     article.neutralSummary = stripForbiddenSourcePhrases(parsed.neutralSummary);
     article.neutralityScore = Number(parsed.neutralityScore);
     article.politicalBiasRisk = parsed.politicalBiasRisk;
+    article.biasAnalysis = parsed.biasAnalysis || '';
     article.curationStatus = 'done';
     article.curationGeneratedAt = new Date();
     article.curationError = '';
