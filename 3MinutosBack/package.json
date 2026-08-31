@@ -16,6 +16,7 @@
   "type": "commonjs",
   "dependencies": {
     "@google-cloud/text-to-speech": "^6.4.1",
+    "@postlight/parser": "^2.2.3",
     "axios": "^1.13.6",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
