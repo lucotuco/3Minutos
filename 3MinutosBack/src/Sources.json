@@ -351,6 +351,24 @@
     "active": true
   },
   {
+    "name": "Básquet Plus",
+    "type": "rss",
+    "url": "https://basquetplus.com/rss.xml",
+    "category": "deportes",
+    "country": "ar",
+    "priority": 8,
+    "active": true
+  },
+  {
+    "name": "UcuWeb",
+    "type": "rss",
+    "url": "https://unocontraunoweb.com/feed/",
+    "category": "deportes",
+    "country": "ar",
+    "priority": 7,
+    "active": true
+  },
+  {
     "name": "Ole Tenis",
     "type": "rss",
     "url": "http://www.ole.com.ar/rss/tenis/",
