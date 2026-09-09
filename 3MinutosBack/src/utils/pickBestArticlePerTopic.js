@@ -7,6 +7,8 @@ const { cosineSimilarity } = require('../embeddings/searchArticlesBySimilarity')
 
 const MAX_ARTICLE_AGE_HOURS = 48;
 
+const queryExpansionCache = new Map();
+
 function getFreshnessCutoff() {
   return new Date(Date.now() - MAX_ARTICLE_AGE_HOURS * 60 * 60 * 1000);
 }
@@ -34,10 +36,13 @@ function normalizeText(value) {
 async function expandTopicForEmbedding(rawTopic) {
   const topic = String(rawTopic || '').trim();
   
-  if (topic.split(/\s+/).length >= 5) {
-    return topic;
+  if (topic.split(/\s+/).length >= 5) return topic;
+  
+  const normTopic = normalizeText(topic);
+  if (queryExpansionCache.has(normTopic)) {
+    return queryExpansionCache.get(normTopic);
   }
-
+  
   const currentYear = new Date().getFullYear();
 
   try {
@@ -47,11 +52,11 @@ async function expandTopicForEmbedding(rawTopic) {
         {
           role: 'system',
           content: `Sos un experto en expansión de consultas para un motor de búsqueda vectorial periodístico (${currentYear}).
-REGLA 1: Tu respuesta DEBE EMPEZAR con las palabras exactas del usuario. NUNCA las elimines ni las modifiques.
-REGLA 2: Agregá de 4 a 6 palabras que sean EXCLUSIVAMENTE jerga hiper-técnica, siglas de organizaciones rectoras, elementos físicos únicos del rubro o terminología ultra específica.
-REGLA 3: PROHIBICIÓN ABSOLUTA de usar palabras genéricas, ambiguas o compartidas entre disciplinas. ESTÁ ESTRICTAMENTE PROHIBIDO incluir en tu respuesta: mundial, torneo, campeonato, competencia, seleccion, nacional, internacional, jugadores, equipo, deporte, historia, actualidad, destacados, eventos, producciones, plataformas.
-REGLA 4: El objetivo es aislar semánticamente el tema para que no se confunda con otros. Si es un seleccionado (ej: leonas, pumas) inyectá la jerga de su deporte específico.
-Devolvé ÚNICAMENTE una sola línea de texto en minúsculas, sin comas ni signos de puntuación.`
+          REGLA 1: Tu respuesta DEBE EMPEZAR con las palabras exactas del usuario. NUNCA las elimines ni las modifiques.
+          REGLA 2: Agregá de 4 a 6 palabras que sean EXCLUSIVAMENTE jerga hiper-técnica, siglas de organizaciones rectoras, elementos físicos únicos del rubro o terminología ultra específica.
+          REGLA 3: PROHIBICIÓN ABSOLUTA de usar palabras genéricas, ambiguas o compartidas entre disciplinas. ESTÁ ESTRICTAMENTE PROHIBIDO incluir en tu respuesta: mundial, torneo, campeonato, competencia, seleccion, nacional, internacional, jugadores, equipo, deporte, historia, actualidad, destacados, eventos, producciones, plataformas.
+          REGLA 4: El objetivo es aislar semánticamente el tema para que no se confunda con otros. Si es un seleccionado (ej: leonas, pumas) inyectá la jerga de su deporte específico.
+          Devolvé ÚNICAMENTE una sola línea de texto en minúsculas, sin comas ni signos de puntuación.`
         },
         { role: 'user', content: topic }
       ],
@@ -61,6 +66,7 @@ Devolvé ÚNICAMENTE una sola línea de texto en minúsculas, sin comas ni signo
 
     const expanded = response.choices?.[0]?.message?.content?.trim() || topic;
     console.log(`🧠 [Query Expansion IA] "${topic}" -> expandido a "${expanded}"`);
+    queryExpansionCache.set(normTopic, expanded);
     return expanded;
   } catch (error) {
     console.warn(`⚠️ Falló expansión IA para "${topic}", usando original:`, error.message);
@@ -193,10 +199,14 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     ...Object.values(TOPIC_TO_CATEGORY)
   ];
 
-  const officialTopicsMap = new Map();
-  for (const t of rawOfficialTopics) {
-    officialTopicsMap.set(normalizeText(t), t);
-  }
+  const expandedQueriesMap = new Map();
+  await Promise.all(topics.map(async (rawTopic) => {
+    const trimmed = String(rawTopic || '').trim();
+    if (trimmed) {
+      const expanded = await expandTopicForEmbedding(trimmed);
+      expandedQueriesMap.set(trimmed, expanded);
+    }
+  }));
 
   for (const rawTopic of topics) {
     const trimmedTopic = String(rawTopic || '').trim();
@@ -212,7 +222,9 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     let bestUnused = null;
     let usedFallback = false;
     let fallbackCategory = null;
-    let queryExpanded = null;
+    
+    const queryForEmbedding = expandedQueriesMap.get(trimmedTopic) || trimmedTopic;
+    const queryExpanded = queryForEmbedding;
 
     let strictCategoryFilter = null;
     if (ALL_CATEGORIES.includes(topic)) {
@@ -225,8 +237,6 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     // CONSULTA UNIFICADA: MOTOR HÍBRIDO (Vectores + BM25) CON 3 ZONAS
     // -------------------------------------------------------------
     try {
-      const queryForEmbedding = await expandTopicForEmbedding(trimmedTopic);
-      queryExpanded = queryForEmbedding;
 
       const searchOptions = { 
         limit: perTopicLimit * 2,
