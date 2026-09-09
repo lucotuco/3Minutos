@@ -199,6 +199,11 @@ async function pickBestArticlePerTopic(topics = [], options = {}) {
     ...Object.values(TOPIC_TO_CATEGORY)
   ];
 
+  const officialTopicsMap = new Map();
+  for (const t of rawOfficialTopics) {
+    officialTopicsMap.set(normalizeText(t), t);
+  }
+
   const expandedQueriesMap = new Map();
   await Promise.all(topics.map(async (rawTopic) => {
     const trimmed = String(rawTopic || '').trim();
