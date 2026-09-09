@@ -27,7 +27,7 @@ const {
 const router = express.Router();
 
 const expensiveLimiter = rateLimit({
-  windowMs: 60 * 1000,
+  windowMs: 30 * 1000,
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
